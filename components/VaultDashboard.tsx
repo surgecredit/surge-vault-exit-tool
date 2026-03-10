@@ -212,7 +212,7 @@ export default function VaultDashboard({ wallet, vault }: Props) {
                       rel="noopener noreferrer"
                       className="text-blue-400 hover:text-blue-300 font-mono text-xs"
                     >
-                      {utxo.txid.slice(0, 16)}...:{utxo.vout}
+                      Transaction: {utxo.txid.slice(0, 8)}...{utxo.txid.slice(-8)}
                     </a>
                     <span className="text-white font-mono text-sm">
                       {(utxo.value / 100_000_000).toFixed(8)} BTC

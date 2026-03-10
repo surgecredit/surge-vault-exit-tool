@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   WalletInfo,
   walletFromMnemonic,
@@ -11,12 +11,42 @@ type Props = {
   onWalletImported: (wallet: WalletInfo) => void;
 };
 
+const STORAGE_KEY = "surge-vault-import";
+
 export default function ImportWallet({ onWalletImported }: Props) {
   const [mode, setMode] = useState<"mnemonic" | "privatekey">("mnemonic");
   const [input, setInput] = useState("");
   const [evmInput, setEvmInput] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved) as {
+        mode?: "mnemonic" | "privatekey";
+        input?: string;
+        evmInput?: string;
+      };
+
+      if (parsed.mode === "mnemonic" || parsed.mode === "privatekey") {
+        setMode(parsed.mode);
+      }
+      setInput(parsed.input || "");
+      setEvmInput(parsed.evmInput || "");
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ mode, input, evmInput }),
+    );
+  }, [mode, input, evmInput]);
 
   const handleImport = () => {
     setError("");

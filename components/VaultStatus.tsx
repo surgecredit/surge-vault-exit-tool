@@ -149,9 +149,9 @@ export default function VaultStatus({
                     href={`${SIGNET_EXPLORER}/tx/${utxo.txid}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300 font-mono text-xs"
+                    className="text-blue-400 hover:text-blue-300 font-mono text-base"
                   >
-                    {utxo.txid.slice(0, 16)}...:{utxo.vout}
+                    Tx Hash: {utxo.txid.slice(0, 16)}...:{utxo.vout}
                   </a>
                   <span className="text-white font-mono text-sm">
                     {(utxo.value / 100_000_000).toFixed(8)} BTC

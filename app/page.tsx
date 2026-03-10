@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Buffer } from "buffer";
 import ImportWallet from "@/components/ImportWallet";
 import VaultDashboard from "@/components/VaultDashboard";
-import { WalletInfo } from "@/lib/wallet";
+import { WalletInfo, walletFromPrivateKey } from "@/lib/wallet";
 import { VaultInfo, generateVault } from "@/lib/vault";
+
+const IMPORT_STORAGE_KEY = "surge-vault-import";
+const SESSION_STORAGE_KEY = "surge-vault-session";
 
 // Ensure Buffer is available globally in browser
 if (typeof window !== "undefined") {
@@ -15,16 +18,60 @@ if (typeof window !== "undefined") {
 export default function Home() {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [vault, setVault] = useState<VaultInfo | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SESSION_STORAGE_KEY);
+      if (!saved) {
+        setHydrated(true);
+        return;
+      }
+
+      const parsed = JSON.parse(saved) as {
+        privateKeyHex?: string;
+        evmAddress?: string;
+      };
+
+      if (!parsed.privateKeyHex?.trim()) {
+        setHydrated(true);
+        return;
+      }
+
+      const restoredWallet = walletFromPrivateKey(
+        parsed.privateKeyHex,
+        parsed.evmAddress,
+      );
+
+      setWallet(restoredWallet);
+      setVault(
+        generateVault(restoredWallet.xOnlyPublicKey, restoredWallet.evmAddress),
+      );
+    } catch {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    } finally {
+      setHydrated(true);
+    }
+  }, []);
 
   const handleWalletImported = (w: WalletInfo) => {
     setWallet(w);
     const v = generateVault(w.xOnlyPublicKey, w.evmAddress);
     setVault(v);
+    window.localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({
+        privateKeyHex: w.privateKey.toString("hex"),
+        evmAddress: w.evmAddress,
+      }),
+    );
   };
 
   const handleReset = () => {
     setWallet(null);
     setVault(null);
+    window.localStorage.removeItem(IMPORT_STORAGE_KEY);
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
   };
 
   return (
@@ -48,7 +95,7 @@ export default function Home() {
               onClick={handleReset}
               className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs rounded-lg transition"
             >
-              Switch Wallet
+              Reset
             </button>
           )}
         </div>
@@ -56,7 +103,11 @@ export default function Home() {
 
       {/* Main content */}
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {!wallet || !vault ? (
+        {!hydrated ? (
+          <div className="max-w-lg mx-auto bg-gray-900 rounded-xl p-6 border border-gray-700 text-center text-gray-400">
+            Restoring wallet...
+          </div>
+        ) : !wallet || !vault ? (
           <ImportWallet onWalletImported={handleWalletImported} />
         ) : (
           <VaultDashboard wallet={wallet} vault={vault} />
