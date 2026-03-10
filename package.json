@@ -1,0 +1,32 @@
+{
+  "name": "surge-vault-exit-demo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@bitcoinerlab/secp256k1": "^1.1.1",
+    "@scure/bip32": "^1.6.2",
+    "@scure/bip39": "^1.5.4",
+    "bitcoinjs-lib": "^6.1.7",
+    "buffer": "^6.0.3",
+    "ecpair": "^2.1.0",
+    "ethers": "^6.15.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "stream-browserify": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.5.0"
+  }
+}
