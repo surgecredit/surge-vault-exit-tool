@@ -5,8 +5,9 @@ import { getUtxos, getTipHeight, Utxo, SIGNET_EXPLORER } from "@/lib/bitcoin";
 import { VaultInfo } from "@/lib/vault";
 import { WalletInfo } from "@/lib/wallet";
 import {
-  executeExitTransaction,
+  buildExitTransaction,
   ExitTransactionResult,
+  finalizeAndBroadcastExitPsbt,
 } from "@/lib/exit-transaction";
 
 type Props = {
@@ -78,16 +79,42 @@ export default function VaultDashboard({ wallet, vault }: Props) {
     setExitResult(null);
     setExecuting(true);
     try {
+      const unisat = (window as any).unisat;
+
       if (!destinationAddress.trim()) {
         throw new Error("Please enter a destination address");
       }
-      const result = await executeExitTransaction(
+      if (typeof window === "undefined" || !unisat) {
+        throw new Error(
+          "UniSat wallet not detected. Please install or unlock it.",
+        );
+      }
+
+      const buildResult = await buildExitTransaction(
         vault,
         eligibleUtxos,
         destinationAddress.trim(),
-        wallet.privateKey,
         wallet.xOnlyPublicKey,
       );
+
+      const signedPsbtHex = await unisat.signPsbt(buildResult.psbtHex, {
+        toSignInputs: Array.from(
+          { length: eligibleUtxos.length },
+          (_, index) => ({
+            index,
+            publicKey: wallet.publicKey.toString("hex"),
+            disableTweakSigner: true,
+          }),
+        ),
+        autoFinalized: false,
+      });
+
+      const result = await finalizeAndBroadcastExitPsbt(
+        signedPsbtHex,
+        buildResult.fee,
+        buildResult.amountSent,
+      );
+
       setExitResult(result);
     } catch (err: any) {
       setExitError(err.message || "Transaction failed");
@@ -212,7 +239,8 @@ export default function VaultDashboard({ wallet, vault }: Props) {
                       rel="noopener noreferrer"
                       className="text-blue-400 hover:text-blue-300 font-mono text-xs"
                     >
-                      Transaction: {utxo.txid.slice(0, 8)}...{utxo.txid.slice(-8)}
+                      Transaction: {utxo.txid.slice(0, 8)}...
+                      {utxo.txid.slice(-8)}
                     </a>
                     <span className="text-white font-mono text-sm">
                       {(utxo.value / 100_000_000).toFixed(8)} BTC

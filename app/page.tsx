@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { Buffer } from "buffer";
 import ImportWallet from "@/components/ImportWallet";
 import VaultDashboard from "@/components/VaultDashboard";
-import { WalletInfo, walletFromPrivateKey } from "@/lib/wallet";
+import { WalletInfo, walletFromPublicKey } from "@/lib/wallet";
 import { VaultInfo, generateVault } from "@/lib/vault";
 
-const IMPORT_STORAGE_KEY = "surge-vault-import";
+const FORM_STORAGE_KEY = "surge-vault-connect-form";
 const SESSION_STORAGE_KEY = "surge-vault-session";
 
 // Ensure Buffer is available globally in browser
@@ -29,18 +29,20 @@ export default function Home() {
       }
 
       const parsed = JSON.parse(saved) as {
-        privateKeyHex?: string;
+        publicKeyHex?: string;
+        paymentAddress?: string;
         evmAddress?: string;
       };
 
-      if (!parsed.privateKeyHex?.trim()) {
+      if (!parsed.publicKeyHex?.trim() || !parsed.evmAddress?.trim()) {
         setHydrated(true);
         return;
       }
 
-      const restoredWallet = walletFromPrivateKey(
-        parsed.privateKeyHex,
+      const restoredWallet = walletFromPublicKey(
+        parsed.publicKeyHex,
         parsed.evmAddress,
+        parsed.paymentAddress,
       );
 
       setWallet(restoredWallet);
@@ -61,7 +63,8 @@ export default function Home() {
     window.localStorage.setItem(
       SESSION_STORAGE_KEY,
       JSON.stringify({
-        privateKeyHex: w.privateKey.toString("hex"),
+        publicKeyHex: w.publicKey.toString("hex"),
+        paymentAddress: w.paymentAddress,
         evmAddress: w.evmAddress,
       }),
     );
@@ -70,7 +73,7 @@ export default function Home() {
   const handleReset = () => {
     setWallet(null);
     setVault(null);
-    window.localStorage.removeItem(IMPORT_STORAGE_KEY);
+    window.localStorage.removeItem(FORM_STORAGE_KEY);
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
   };
 
@@ -81,7 +84,7 @@ export default function Home() {
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-orange-500">
-              Surge Vault Exit Demo
+              Surge Vault Recovery Tool
             </h1>
             <p className="text-gray-500 text-xs mt-0.5">
               Taproot Script-Path Exit | Bitcoin Signet |{" "}

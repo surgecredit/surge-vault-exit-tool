@@ -1,6 +1,5 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { crypto as bcrypto } from "bitcoinjs-lib";
-import { ECPairFactory } from "ecpair";
 import ecc from "@bitcoinerlab/secp256k1";
 import {
   NETWORK,
@@ -13,7 +12,6 @@ import { createExitScript } from "./scripts";
 import { VaultInfo } from "./vault";
 
 bitcoin.initEccLib(ecc);
-const ECPair = ECPairFactory(ecc);
 
 function tapleafHash(leafVersion: number, scriptBuf: Buffer): Buffer {
   if (scriptBuf.length >= 0xfd) throw new Error("script too large");
@@ -31,19 +29,23 @@ export type ExitTransactionResult = {
   amountSent: number;
 };
 
+export type ExitTransactionBuildResult = {
+  psbtHex: string;
+  fee: number;
+  amountSent: number;
+};
+
 /**
- * Build, sign, and broadcast an exit transaction.
+ * Build an exit transaction PSBT for wallet signing.
  *
  * This uses the EXIT script path (user-only, after timelock).
- * The user signs alone with their private key — no vault co-signature needed.
  */
-export async function executeExitTransaction(
+export async function buildExitTransaction(
   vault: VaultInfo,
   utxos: Utxo[],
   destinationAddress: string,
-  userPrivateKey: Buffer,
   userXOnly: Buffer,
-): Promise<ExitTransactionResult> {
+): Promise<ExitTransactionBuildResult> {
   if (utxos.length === 0) {
     throw new Error("No UTXOs available in the vault");
   }
@@ -128,58 +130,36 @@ export async function executeExitTransaction(
     value: amountToSend,
   });
 
-  // --- Step 5: Compute sighashes and sign ---
+  return {
+    psbtHex: psbt.toHex(),
+    fee,
+    amountSent: amountToSend,
+  };
+}
 
-  const unsignedTx = bitcoin.Transaction.fromBuffer(
-    psbt.data.globalMap.unsignedTx.toBuffer(),
+export async function finalizeAndBroadcastExitPsbt(
+  signedPsbtHex: string,
+  fee: number,
+  amountSent: number,
+): Promise<ExitTransactionResult> {
+  const psbt = bitcoin.Psbt.fromHex(signedPsbtHex, { network: NETWORK });
+
+  const needsFinalize = psbt.data.inputs.some(
+    (input) => !input.finalScriptWitness && !input.finalScriptSig,
   );
 
-  const leafHash = tapleafHash(0xc0, Buffer.from(exitScript));
-
-  const prevOutScripts = psbt.data.inputs.map(
-    (inp: any) => inp.witnessUtxo?.script!,
-  );
-  const inputValues = psbt.data.inputs.map(
-    (inp: any) => inp.witnessUtxo?.value!,
-  );
-
-  const keyPair = ECPair.fromPrivateKey(userPrivateKey, { network: NETWORK });
-
-  // Sign each input
-  for (let i = 0; i < psbt.data.inputs.length; i++) {
-    const hash = unsignedTx.hashForWitnessV1(
-      i,
-      prevOutScripts,
-      inputValues,
-      bitcoin.Transaction.SIGHASH_DEFAULT,
-      Buffer.from(leafHash),
-    );
-
-    const signature = keyPair.signSchnorr(Buffer.from(hash));
-
-    psbt.updateInput(i, {
-      tapScriptSig: [
-        {
-          pubkey: userXOnly,
-          signature: Buffer.from(signature),
-          leafHash,
-        },
-      ],
-    });
+  if (needsFinalize) {
+    psbt.finalizeAllInputs();
   }
 
-  // --- Step 6: Finalize and broadcast ---
-
-  psbt.finalizeAllInputs();
   const tx = psbt.extractTransaction(true);
   const rawTxHex = tx.toHex();
-
   const txid = await pushTx(rawTxHex);
 
   return {
     txid,
     txHex: rawTxHex,
     fee,
-    amountSent: amountToSend,
+    amountSent,
   };
 }

@@ -14,10 +14,11 @@ const ECPair = ECPairFactory(ecc);
 const BITCOIN_PATH = "m/86'/1'/0'/0/0";
 
 export type WalletInfo = {
-  privateKey: Buffer;
+  privateKey?: Buffer;
   publicKey: Buffer;
   xOnlyPublicKey: Buffer;
   taprootAddress: string;
+  paymentAddress?: string;
   evmAddress: string;
 };
 
@@ -100,5 +101,33 @@ export function walletFromPrivateKey(
     xOnlyPublicKey,
     taprootAddress: p2tr.address!,
     evmAddress: evmAddress || "0x0000000000000000000000000000000000000000",
+  };
+}
+
+export function walletFromPublicKey(
+  publicKeyHex: string,
+  evmAddress: string,
+  paymentAddress?: string,
+): WalletInfo {
+  const cleaned = publicKeyHex.replace(/^0x/, "").trim();
+  const publicKey = Buffer.from(cleaned, "hex");
+
+  if (publicKey.length !== 33) {
+    throw new Error("UniSat returned an invalid compressed public key");
+  }
+
+  const xOnlyPublicKey = publicKey.subarray(1, 33);
+
+  const p2tr = bitcoin.payments.p2tr({
+    pubkey: xOnlyPublicKey,
+    network: NETWORK,
+  });
+
+  return {
+    publicKey,
+    xOnlyPublicKey,
+    taprootAddress: p2tr.address!,
+    paymentAddress,
+    evmAddress,
   };
 }
