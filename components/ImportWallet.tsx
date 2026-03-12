@@ -84,7 +84,7 @@ export default function ImportWallet({ onWalletImported }: Props) {
           Access Your Vault
         </h2>
         <p className="text-gray-400 text-sm">
-          Connect UniSat and enter your EVM address to load the matching vault.
+          Enter your EVM address and Connect UniSat to load the vault.
         </p>
       </div>
 

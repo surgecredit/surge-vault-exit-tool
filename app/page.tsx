@@ -19,12 +19,19 @@ export default function Home() {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [vault, setVault] = useState<VaultInfo | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    const fallbackTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setHydrated(true);
+      }
+    }, 1500);
+
     try {
       const saved = window.localStorage.getItem(SESSION_STORAGE_KEY);
       if (!saved) {
-        setHydrated(true);
         return;
       }
 
@@ -35,7 +42,7 @@ export default function Home() {
       };
 
       if (!parsed.publicKeyHex?.trim() || !parsed.evmAddress?.trim()) {
-        setHydrated(true);
+        window.localStorage.removeItem(SESSION_STORAGE_KEY);
         return;
       }
 
@@ -45,15 +52,28 @@ export default function Home() {
         parsed.paymentAddress,
       );
 
-      setWallet(restoredWallet);
-      setVault(
-        generateVault(restoredWallet.xOnlyPublicKey, restoredWallet.evmAddress),
-      );
+      if (!cancelled) {
+        setWallet(restoredWallet);
+        setVault(
+          generateVault(
+            restoredWallet.xOnlyPublicKey,
+            restoredWallet.evmAddress,
+          ),
+        );
+      }
     } catch {
       window.localStorage.removeItem(SESSION_STORAGE_KEY);
     } finally {
-      setHydrated(true);
+      window.clearTimeout(fallbackTimer);
+      if (!cancelled) {
+        setHydrated(true);
+      }
     }
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(fallbackTimer);
+    };
   }, []);
 
   const handleWalletImported = (w: WalletInfo) => {
@@ -73,9 +93,14 @@ export default function Home() {
   const handleReset = () => {
     setWallet(null);
     setVault(null);
+    setMenuOpen(false);
     window.localStorage.removeItem(FORM_STORAGE_KEY);
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
   };
+
+  const walletLabel = wallet?.paymentAddress
+    ? `${wallet.paymentAddress.slice(0, 6)}...${wallet.paymentAddress.slice(-4)}`
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -84,22 +109,34 @@ export default function Home() {
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-orange-500">
-              Surge Vault Recovery Tool
+              Surge Vault Sovereign Tool
             </h1>
             <p className="text-gray-500 text-xs mt-0.5">
-              Taproot Script-Path Exit | Bitcoin Signet |{" "}
-              <span className="text-orange-400">
-                52,416-block timelock (~1 year)
-              </span>
+              Taproot Script-Path Exit
             </p>
           </div>
           {wallet && (
-            <button
-              onClick={handleReset}
-              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs rounded-lg transition"
-            >
-              Reset
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen((open) => !open)}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded-lg transition"
+              >
+                <span className="inline-block h-2 w-2 rounded-full bg-green-400" />
+                <span className="font-mono">{walletLabel}</span>
+                <span className="text-gray-400">▾</span>
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-36  rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
+                  <button
+                    onClick={handleReset}
+                    className="w-full rounded-md px-3 py-2 text-center text-sm text-red-300 hover:bg-gray-800"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </header>
