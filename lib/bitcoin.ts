@@ -1,14 +1,12 @@
 import * as bitcoin from "bitcoinjs-lib";
+import { APP_CONFIG } from "./config";
 
 // Bitcoin Signet network (same as surge-credit-app testnet)
 export const NETWORK = bitcoin.networks.testnet;
 
-const BTC_API =
-  process.env.NEXT_PUBLIC_BTC_API || "https://signet.surge.dev/api";
-const BTC_ESPLORA_API =
-  process.env.NEXT_PUBLIC_BTC_ESPLORA_API || "https://esplora.signet.surge.dev";
-export const SIGNET_EXPLORER =
-  process.env.NEXT_PUBLIC_SIGNET_EXPLORER || "https://signet.surge.dev";
+const BTC_API = APP_CONFIG.btcApi;
+const BTC_ESPLORA_API = APP_CONFIG.btcEsploraApi;
+export const SIGNET_EXPLORER = APP_CONFIG.signetExplorer;
 
 export type Utxo = {
   txid: string;
