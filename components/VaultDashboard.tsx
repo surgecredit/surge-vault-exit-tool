@@ -196,11 +196,13 @@ export default function VaultDashboard({
               </span>
             </a>
             <p className="mt-10 text-3xl font-semibold tracking-tight text-white">
-              No balance available in this vault
+              This vault currently holds no BTC.
             </p>
             <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-gray-400">
-              You can withdraw funds to your wallet after the vault receives a
-              deposit and the unlock time is reached.
+              This vault currently has no spendable UTXOs.
+              <br />
+              Recovery becomes possible once BTC is deposited into the vault and
+              the timelock period has passed.
             </p>
 
             {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
@@ -502,7 +504,7 @@ export default function VaultDashboard({
                 <button
                   onClick={handleExecuteExit}
                   disabled={executing || !destinationAddress.trim()}
-                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium py-3 rounded-lg transition"
+                  className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium py-3 rounded-lg transition"
                 >
                   {executing
                     ? "Building & Broadcasting..."
