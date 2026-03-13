@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { WalletInfo, walletFromPublicKey } from "@/lib/wallet";
+import { ACTIVE_NETWORK_CONFIG, APP_CONFIG } from "@/lib/config";
 
 type Props = {
   onWalletImported: (wallet: WalletInfo) => void;
@@ -20,7 +21,7 @@ async function connectUniSat(evmAddress: string) {
   }
 
   try {
-    await unisat.switchNetwork("testnet");
+    await unisat.switchNetwork(ACTIVE_NETWORK_CONFIG.unisatNetwork);
   } catch {
     // UniSat may already be on the correct network.
   }
@@ -84,7 +85,8 @@ export default function ImportWallet({ onWalletImported }: Props) {
           Access Your Vault
         </h2>
         <p className="text-gray-400 text-sm">
-          Enter your EVM address and Connect UniSat to load the vault.
+          Enter your EVM address and connect UniSat to load the vault on{" "}
+          {ACTIVE_NETWORK_CONFIG.networkLabel}.
         </p>
       </div>
 
@@ -111,6 +113,10 @@ export default function ImportWallet({ onWalletImported }: Props) {
         >
           {loading ? "Connecting UniSat..." : "Connect UniSat"}
         </button>
+
+        <p className="text-xs text-gray-500 text-center">
+          Network mode: {APP_CONFIG.mainnet ? "Mainnet" : "Signet"}
+        </p>
       </div>
     </div>
   );

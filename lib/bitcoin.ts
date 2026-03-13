@@ -1,12 +1,15 @@
 import * as bitcoin from "bitcoinjs-lib";
-import { APP_CONFIG } from "./config";
+import { ACTIVE_NETWORK_CONFIG, APP_CONFIG } from "./config";
 
-// Bitcoin Signet network (same as surge-credit-app testnet)
-export const NETWORK = bitcoin.networks.testnet;
+export const NETWORK = APP_CONFIG.mainnet
+  ? bitcoin.networks.bitcoin
+  : bitcoin.networks.testnet;
 
-const BTC_API = APP_CONFIG.btcApi;
-const BTC_ESPLORA_API = APP_CONFIG.btcEsploraApi;
-export const SIGNET_EXPLORER = APP_CONFIG.signetExplorer;
+const BTC_API = ACTIVE_NETWORK_CONFIG.btcApi;
+const BTC_ESPLORA_API = ACTIVE_NETWORK_CONFIG.btcEsploraApi;
+export const BTC_EXPLORER = ACTIVE_NETWORK_CONFIG.explorer;
+export const NETWORK_LABEL = ACTIVE_NETWORK_CONFIG.networkLabel;
+export const IS_MAINNET = APP_CONFIG.mainnet;
 
 export type Utxo = {
   txid: string;
@@ -68,7 +71,7 @@ export async function getFeeRates(): Promise<{
 }> {
   const res = await fetch(`${BTC_API}/v1/fees/recommended`);
   if (!res.ok) {
-    // Fallback to a sensible default for signet
+    // Fallback to a sensible default if fee API is unavailable
     return {
       fastestFee: 2,
       halfHourFee: 1,

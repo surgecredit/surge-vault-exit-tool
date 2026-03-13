@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Buffer } from "buffer";
 import ImportWallet from "@/components/ImportWallet";
 import VaultDashboard from "@/components/VaultDashboard";
+import { NETWORK_LABEL } from "@/lib/bitcoin";
 import { WalletInfo, walletFromPublicKey } from "@/lib/wallet";
 import { VaultInfo, generateVault } from "@/lib/vault";
 
@@ -191,7 +192,7 @@ export default function Home() {
               Surge Vault Sovereign Tool
             </h1>
             <p className="text-gray-500 text-xs mt-0.5">
-              Taproot Script-Path Exit
+              Taproot Script-Path Exit | {NETWORK_LABEL}
             </p>
           </div>
           {wallet && (

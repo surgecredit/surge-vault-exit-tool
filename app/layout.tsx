@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { APP_CONFIG } from "@/lib/config";
 
 export const metadata: Metadata = {
-  title: "Surge Vault Recovery Tool",
-  description: "Taproot script-path exit demo on Bitcoin Signet",
+  title: "Surge Vault Sovereign Tool",
+  description: `Taproot script-path exit tool on Bitcoin ${APP_CONFIG.mainnet ? "Mainnet" : "Signet"}`,
 };
 
 export default function RootLayout({

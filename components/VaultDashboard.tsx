@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { getUtxos, getTipHeight, Utxo, SIGNET_EXPLORER } from "@/lib/bitcoin";
+import {
+  BTC_EXPLORER,
+  getUtxos,
+  getTipHeight,
+  NETWORK_LABEL,
+  Utxo,
+} from "@/lib/bitcoin";
 import { VaultInfo } from "@/lib/vault";
 import { WalletInfo } from "@/lib/wallet";
 import {
@@ -178,7 +184,7 @@ export default function VaultDashboard({
             </h2>
 
             <a
-              href={`${SIGNET_EXPLORER}/address/${vault.address}`}
+              href={`${BTC_EXPLORER}/address/${vault.address}`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-6 flex items-center justify-center gap-2 font-mono text-sm text-orange-400 transition hover:text-orange-300"
@@ -208,7 +214,7 @@ export default function VaultDashboard({
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">Vault Overview</h2>
               <a
-                href={`${SIGNET_EXPLORER}/address/${vault.address}`}
+                href={`${BTC_EXPLORER}/address/${vault.address}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:text-blue-300 text-xs"
@@ -304,7 +310,7 @@ export default function VaultDashboard({
                     >
                       <div className="flex items-center justify-between mb-2">
                         <a
-                          href={`${SIGNET_EXPLORER}/tx/${utxo.txid}`}
+                          href={`${BTC_EXPLORER}/tx/${utxo.txid}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-400 hover:text-blue-300 font-mono text-xs"
@@ -327,12 +333,15 @@ export default function VaultDashboard({
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 bg-red-900 text-red-300 rounded">
-                            {blocksRemaining.toLocaleString()} blocks remaining ({blocksElapsed.toLocaleString()}/{timelockBlocks.toLocaleString()})
+                            {blocksRemaining.toLocaleString()} blocks remaining
+                            ({blocksElapsed.toLocaleString()}/
+                            {timelockBlocks.toLocaleString()})
                           </span>
                         )}
                         {confirmed && (
                           <span className="text-gray-500">
-                            Confirmed at block {utxo.status.block_height.toLocaleString()}
+                            Confirmed at block{" "}
+                            {utxo.status.block_height.toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -364,7 +373,7 @@ export default function VaultDashboard({
                       Transaction ID
                     </span>
                     <a
-                      href={`${SIGNET_EXPLORER}/tx/${exitResult.txid}`}
+                      href={`${BTC_EXPLORER}/tx/${exitResult.txid}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block text-blue-400 hover:text-blue-300 font-mono text-sm break-all"
@@ -450,7 +459,7 @@ export default function VaultDashboard({
                     type="text"
                     value={destinationAddress}
                     onChange={(e) => setDestinationAddress(e.target.value)}
-                    placeholder="Enter signet Bitcoin address (tb1...)"
+                    placeholder={`Enter ${NETWORK_LABEL.toLowerCase()} Bitcoin address`}
                     className="w-full bg-gray-800 text-white rounded-lg p-3 text-sm border border-gray-600 focus:border-orange-500 focus:outline-none font-mono"
                   />
                 </div>
