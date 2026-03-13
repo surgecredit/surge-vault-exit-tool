@@ -10,6 +10,81 @@ import { VaultInfo, generateVault } from "@/lib/vault";
 const FORM_STORAGE_KEY = "surge-vault-connect-form";
 const SESSION_STORAGE_KEY = "surge-vault-session";
 
+function VaultLoadingState() {
+  return (
+    <div className="rounded-xl bg-gray-900 p-6 space-y-6">
+      <div>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div className="h-6 w-32 animate-pulse rounded bg-gray-800" />
+          <div className="h-4 w-24 animate-pulse rounded bg-gray-800" />
+        </div>
+        <div className="rounded-lg bg-gray-800 p-4">
+          <div className="h-4 w-full animate-pulse rounded bg-gray-700" />
+          <div className="mt-2 h-4 w-4/5 animate-pulse rounded bg-gray-700" />
+          <div className="mt-3 h-8 w-28 animate-pulse rounded-lg bg-gray-700" />
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="h-6 w-28 animate-pulse rounded bg-gray-800" />
+          <div className="flex items-center gap-3">
+            <div className="h-5 w-28 animate-pulse rounded bg-gray-800" />
+            <div className="h-8 w-20 animate-pulse rounded-lg bg-gray-800" />
+          </div>
+        </div>
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-lg bg-gray-800 p-3">
+            <div className="h-3 w-20 animate-pulse rounded bg-gray-700" />
+            <div className="mt-3 h-7 w-24 animate-pulse rounded bg-gray-700" />
+            <div className="mt-2 h-3 w-14 animate-pulse rounded bg-gray-700" />
+          </div>
+          <div className="rounded-lg bg-gray-800 p-3">
+            <div className="h-3 w-24 animate-pulse rounded bg-gray-700" />
+            <div className="mt-3 h-7 w-20 animate-pulse rounded bg-gray-700" />
+          </div>
+          <div className="rounded-lg bg-gray-800 p-3">
+            <div className="h-3 w-24 animate-pulse rounded bg-gray-700" />
+            <div className="mt-3 h-7 w-16 animate-pulse rounded bg-gray-700" />
+            <div className="mt-2 h-3 w-28 animate-pulse rounded bg-gray-700" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 1 }).map((_, index) => (
+            <div key={index} className="rounded-lg bg-gray-800 p-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="h-4 w-40 animate-pulse rounded bg-gray-700" />
+                <div className="h-4 w-24 animate-pulse rounded bg-gray-700" />
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="h-5 w-36 animate-pulse rounded bg-gray-700" />
+                <div className="h-4 w-40 animate-pulse rounded bg-gray-700" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-4 h-6 w-28 animate-pulse rounded bg-gray-800" />
+        <div className="rounded-lg bg-gray-800 p-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="h-3 w-20 animate-pulse rounded bg-gray-700" />
+              <div className="mt-3 h-6 w-12 animate-pulse rounded bg-gray-700" />
+            </div>
+            <div>
+              <div className="h-3 w-24 animate-pulse rounded bg-gray-700" />
+              <div className="mt-3 h-6 w-20 animate-pulse rounded bg-gray-700" />
+              <div className="mt-2 h-3 w-16 animate-pulse rounded bg-gray-700" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Ensure Buffer is available globally in browser
 if (typeof window !== "undefined") {
   (window as any).Buffer = Buffer;
@@ -148,18 +223,12 @@ export default function Home() {
       {/* Main content */}
       <main className="max-w-3xl mx-auto px-4 py-8">
         {!hydrated ? (
-          <div className="max-w-lg mx-auto bg-gray-900 rounded-xl p-6 border border-gray-700 text-center text-gray-400">
-            Loading vault data...
-          </div>
+          <VaultLoadingState />
         ) : !wallet || !vault ? (
           <ImportWallet onWalletImported={handleWalletImported} />
         ) : (
           <>
-            {!vaultReady && (
-              <div className="max-w-lg mx-auto bg-gray-900 rounded-xl p-6 border border-gray-700 text-center text-gray-400">
-                Loading vault data...
-              </div>
-            )}
+            {!vaultReady && <VaultLoadingState />}
             <VaultDashboard
               wallet={wallet}
               vault={vault}
