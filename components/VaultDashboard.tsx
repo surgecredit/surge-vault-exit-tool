@@ -33,7 +33,6 @@ export default function VaultDashboard({
   const [tipHeight, setTipHeight] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [copied, setCopied] = useState(false);
 
   // Exit transaction state
@@ -75,10 +74,9 @@ export default function VaultDashboard({
   }, [refresh]);
 
   useEffect(() => {
-    if (!autoRefresh) return;
     const interval = setInterval(refresh, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, refresh]);
+  }, [refresh]);
 
   useEffect(() => {
     setDestinationAddress(wallet.paymentAddress || "");
@@ -212,49 +210,77 @@ export default function VaultDashboard({
         <>
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Vault Overview</h2>
-              <a
-                href={`${BTC_EXPLORER}/address/${vault.address}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-300 text-xs"
-              >
-                View on Explorer
-              </a>
+              <h2 className="text-lg font-bold text-white">Vault Address</h2>
             </div>
 
             <div className="bg-gray-800 rounded-lg p-4 mb-4">
-              <p className="text-orange-400 font-mono text-sm break-all">
-                {vault.address}
-              </p>
-              <button
-                onClick={copyAddress}
-                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded-lg transition"
-              >
-                {copied ? "Copied!" : "Copy Address"}
-              </button>
+              <div className="flex items-start justify-between gap-3">
+                <a
+                  href={`${BTC_EXPLORER}/address/${vault.address}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-orange-400 hover:text-orange-300 hover:underline font-mono text-sm break-all"
+                >
+                  {vault.address}
+                </a>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={`${BTC_EXPLORER}/address/${vault.address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open in explorer"
+                    aria-label="Open in explorer"
+                    className="rounded-md bg-gray-700 hover:bg-gray-600 p-2 text-gray-200 transition"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M11 3a1 1 0 1 0 0 2h2.586L8.293 10.293a1 1 0 1 0 1.414 1.414L15 6.414V9a1 1 0 1 0 2 0V3h-6Z" />
+                      <path d="M5 5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-3a1 1 0 1 0-2 0v3H5V7h3a1 1 0 1 0 0-2H5Z" />
+                    </svg>
+                  </a>
+                  <button
+                    onClick={copyAddress}
+                    title={copied ? "Copied" : "Copy address"}
+                    aria-label={copied ? "Address copied" : "Copy address"}
+                    className="rounded-md bg-gray-700 hover:bg-gray-600 p-2 text-gray-200 transition"
+                  >
+                    {copied ? (
+                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-8.01 8.08a1 1 0 0 1-1.421.002l-3.99-3.99a1 1 0 1 1 1.414-1.415l3.28 3.28 7.304-7.37a1 1 0 0 1 1.417-.001Z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M7 3a2 2 0 0 0-2 2v1H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H7Zm6 10V8a2 2 0 0 0-2-2H7V5h7v8h-1Zm-9-5h7v7H4V8Z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Vault Status</h2>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-gray-400">
-                  <input
-                    type="checkbox"
-                    checked={autoRefresh}
-                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                    className="rounded"
-                  />
-                  Auto-refresh
-                </label>
+              <h2 className="text-lg font-bold text-white">Vault Timelock Status</h2>
+              <div className="flex items-center gap-2">
                 <button
                   onClick={refresh}
                   disabled={loading}
-                  className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-xs rounded-lg transition"
+                  title="Refresh"
+                  aria-label="Refresh"
+                  className="rounded-md bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 p-2 text-gray-200 disabled:text-gray-500 transition"
                 >
-                  {loading ? "Loading..." : "Refresh"}
+                  <svg
+                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10a7 7 0 0 1 12-4.95" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 2.5v3.6h-3.6" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 10a7 7 0 0 1-12 4.95" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 17.5v-3.6h3.6" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -265,7 +291,7 @@ export default function VaultDashboard({
               <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="bg-gray-800 rounded-lg p-3">
                   <span className="text-gray-500 text-xs uppercase">
-                    Total Balance
+                    Vault Balance
                   </span>
                   <p className="text-white font-mono text-lg">
                     {formatBtc(totalBalance)}
@@ -274,7 +300,7 @@ export default function VaultDashboard({
                 </div>
                 <div className="bg-gray-800 rounded-lg p-3">
                   <span className="text-gray-500 text-xs uppercase">
-                    Current Block
+                    Current Bitcoin Block
                   </span>
                   <p className="text-white font-mono text-lg">
                     {tipHeight.toLocaleString()}
@@ -282,7 +308,7 @@ export default function VaultDashboard({
                 </div>
                 <div className="bg-gray-800 rounded-lg p-3">
                   <span className="text-gray-500 text-xs uppercase">
-                    Eligible UTXOs
+                    Exit Eligible UTXOs
                   </span>
                   <p className="text-white font-mono text-lg">
                     {eligibleUtxos.length} / {utxos.length}
@@ -302,6 +328,9 @@ export default function VaultDashboard({
                   const blocksRemaining = confirmed
                     ? Math.max(0, timelockBlocks - blocksElapsed)
                     : timelockBlocks;
+                  const recoverableAtBlock = confirmed
+                    ? utxo.status.block_height + timelockBlocks
+                    : null;
 
                   return (
                     <div
@@ -313,9 +342,9 @@ export default function VaultDashboard({
                           href={`${BTC_EXPLORER}/tx/${utxo.txid}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-400 hover:text-blue-300 font-mono text-xs"
+                           className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs"
                         >
-                          Transaction: {utxo.txid.slice(0, 8)}...
+                          Tx: {utxo.txid.slice(0, 8)}...
                           {utxo.txid.slice(-8)}
                         </a>
                         <span className="text-white font-mono text-sm">
@@ -333,15 +362,14 @@ export default function VaultDashboard({
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 bg-red-900 text-red-300 rounded">
-                            {blocksRemaining.toLocaleString()} blocks remaining
-                            ({blocksElapsed.toLocaleString()}/
-                            {timelockBlocks.toLocaleString()})
+                            Recoverable at block {recoverableAtBlock?.toLocaleString()}
                           </span>
                         )}
                         {confirmed && (
                           <span className="text-gray-500">
-                            Confirmed at block{" "}
-                            {utxo.status.block_height.toLocaleString()}
+                            {!timelockMet
+                              ? `Remaining blocks: ${blocksRemaining.toLocaleString()}`
+                              : ""}
                           </span>
                         )}
                       </div>
@@ -353,7 +381,7 @@ export default function VaultDashboard({
           </div>
 
           <div>
-            <h2 className="text-lg font-bold text-white mb-4">Execute Exit</h2>
+            <h2 className="text-lg font-bold text-white mb-4">Construct Recovery Transaction</h2>
 
             {exitResult ? (
               <div className="space-y-4">
@@ -372,14 +400,14 @@ export default function VaultDashboard({
                     <span className="text-gray-500 text-xs uppercase">
                       Transaction ID
                     </span>
-                    <a
-                      href={`${BTC_EXPLORER}/tx/${exitResult.txid}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-blue-400 hover:text-blue-300 font-mono text-sm break-all"
-                    >
-                      {exitResult.txid}
-                    </a>
+                     <a
+                       href={`${BTC_EXPLORER}/tx/${exitResult.txid}`}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="block text-blue-400 hover:text-blue-300 hover:underline font-mono text-sm break-all"
+                     >
+                       {exitResult.txid}
+                     </a>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -421,8 +449,11 @@ export default function VaultDashboard({
             ) : eligibleUtxos.length === 0 ? (
               <div className="bg-gray-800 rounded-lg p-6 text-center">
                 <p className="text-gray-500">
-                  No eligible UTXOs. The vault needs confirmed UTXOs that are at
-                  least {timelockBlocks.toLocaleString()} blocks old.
+                  No UTXOs are currently eligible for recovery.
+                  <br />
+                  Vault exits require a timelock of {timelockBlocks.toLocaleString()} blocks (~1 year).
+                  <br />
+                  Once the timelock has passed, you will be able to construct and broadcast a recovery transaction.
                 </p>
               </div>
             ) : (
@@ -431,7 +462,7 @@ export default function VaultDashboard({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-gray-500 text-xs uppercase">
-                        Eligible UTXOs
+                        Exit Eligible UTXOs
                       </span>
                       <p className="text-white font-mono">
                         {eligibleUtxos.length}
@@ -475,7 +506,7 @@ export default function VaultDashboard({
                 >
                   {executing
                     ? "Building & Broadcasting..."
-                    : "Execute Exit Transaction"}
+                    : "Construct Recovery Transaction"}
                 </button>
               </>
             )}
