@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getUtxos, getTipHeight, Utxo, SIGNET_EXPLORER } from "@/lib/bitcoin";
 import { VaultInfo } from "@/lib/vault";
 import { WalletInfo } from "@/lib/wallet";
@@ -13,9 +13,16 @@ import {
 type Props = {
   wallet: WalletInfo;
   vault: VaultInfo;
+  className?: string;
+  onInitialLoadComplete?: () => void;
 };
 
-export default function VaultDashboard({ wallet, vault }: Props) {
+export default function VaultDashboard({
+  wallet,
+  vault,
+  className = "",
+  onInitialLoadComplete,
+}: Props) {
   const [utxos, setUtxos] = useState<Utxo[]>([]);
   const [tipHeight, setTipHeight] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -32,6 +39,7 @@ export default function VaultDashboard({ wallet, vault }: Props) {
   const [exitResult, setExitResult] = useState<ExitTransactionResult | null>(
     null,
   );
+  const initialLoadReportedRef = useRef(false);
 
   const timelockBlocks = vault.timelockBlocks;
 
@@ -48,9 +56,13 @@ export default function VaultDashboard({ wallet, vault }: Props) {
     } catch (err: any) {
       setError(err.message || "Failed to fetch vault data");
     } finally {
+      if (!initialLoadReportedRef.current) {
+        initialLoadReportedRef.current = true;
+        onInitialLoadComplete?.();
+      }
       setLoading(false);
     }
-  }, [vault.address]);
+  }, [onInitialLoadComplete, vault.address]);
 
   useEffect(() => {
     refresh();
@@ -137,8 +149,22 @@ export default function VaultDashboard({ wallet, vault }: Props) {
   };
 
   return (
-    <div className="bg-gray-900 rounded-xl p-6 space-y-6">
-      {!hasAnyUtxos ? (
+    <div className={`bg-gray-900 rounded-xl p-6 space-y-6 ${className}`.trim()}>
+      {loading && !hasAnyUtxos ? (
+        <div className="px-8 py-16 text-center">
+          <div className="mx-auto max-w-2xl">
+            <p className="text-[10px] uppercase tracking-[0.32em] text-gray-500">
+              Vault Balance
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white">
+              Loading vault data...
+            </h2>
+            <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-gray-400">
+              Checking the vault balance and current unlock status.
+            </p>
+          </div>
+        </div>
+      ) : !hasAnyUtxos ? (
         <div className="px-8 py-16 text-center">
           <div className="mx-auto max-w-2xl">
             <p className="text-[10px] uppercase tracking-[0.32em] text-gray-500">

@@ -19,6 +19,7 @@ export default function Home() {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [vault, setVault] = useState<VaultInfo | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [vaultReady, setVaultReady] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function Home() {
 
       if (!cancelled) {
         setWallet(restoredWallet);
+        setVaultReady(false);
         setVault(
           generateVault(
             restoredWallet.xOnlyPublicKey,
@@ -78,6 +80,7 @@ export default function Home() {
 
   const handleWalletImported = (w: WalletInfo) => {
     setWallet(w);
+    setVaultReady(false);
     const v = generateVault(w.xOnlyPublicKey, w.evmAddress);
     setVault(v);
     window.localStorage.setItem(
@@ -93,6 +96,7 @@ export default function Home() {
   const handleReset = () => {
     setWallet(null);
     setVault(null);
+    setVaultReady(false);
     setMenuOpen(false);
     window.localStorage.removeItem(FORM_STORAGE_KEY);
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
@@ -145,12 +149,24 @@ export default function Home() {
       <main className="max-w-3xl mx-auto px-4 py-8">
         {!hydrated ? (
           <div className="max-w-lg mx-auto bg-gray-900 rounded-xl p-6 border border-gray-700 text-center text-gray-400">
-            Restoring wallet...
+            Loading vault data...
           </div>
         ) : !wallet || !vault ? (
           <ImportWallet onWalletImported={handleWalletImported} />
         ) : (
-          <VaultDashboard wallet={wallet} vault={vault} />
+          <>
+            {!vaultReady && (
+              <div className="max-w-lg mx-auto bg-gray-900 rounded-xl p-6 border border-gray-700 text-center text-gray-400">
+                Loading vault data...
+              </div>
+            )}
+            <VaultDashboard
+              wallet={wallet}
+              vault={vault}
+              className={vaultReady ? "" : "hidden"}
+              onInitialLoadComplete={() => setVaultReady(true)}
+            />
+          </>
         )}
       </main>
     </div>
