@@ -115,7 +115,12 @@ export default function ImportWallet({ onWalletImported }: Props) {
         </button>
 
         <p className="text-xs text-gray-500 text-center">
-          Network mode: {APP_CONFIG.mainnet ? "Mainnet" : "Signet"}
+          Network mode:{" "}
+          <span
+            className={APP_CONFIG.mainnet ? "text-green-400" : "text-orange-400"}
+          >
+            {APP_CONFIG.mainnet ? "Mainnet" : "Signet"}
+          </span>
         </p>
       </div>
     </div>
