@@ -2,16 +2,16 @@ import * as bitcoin from "bitcoinjs-lib";
 import ecc from "@bitcoinerlab/secp256k1";
 import { ethers } from "ethers";
 import { NETWORK } from "./bitcoin";
-import { APP_CONFIG } from "./config";
+import { ACTIVE_NETWORK_CONFIG } from "./config";
 import { createScriptTree, DEFAULT_EXIT_TIMELOCK_BLOCKS } from "./scripts";
 
 bitcoin.initEccLib(ecc);
 
 // NUMS point — disables key-path spending
-const NUMS_XONLY = APP_CONFIG.key;
+const NUMS_XONLY = ACTIVE_NETWORK_CONFIG.key;
 
 // Loan vault public key (from the MPC/server)
-const LOAN_VAULT_PUBLIC_KEY = APP_CONFIG.pubkey;
+const LOAN_VAULT_PUBLIC_KEY = ACTIVE_NETWORK_CONFIG.pubkey;
 
 /**
  * Generate a vault ID from an EVM address and nonce.
