@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  mainnet: false,
+  mainnet: true,
   signet: {
     btcApi: "https://signet.surge.dev/api",
     btcEsploraApi: "https://esplora.signet.surge.dev",

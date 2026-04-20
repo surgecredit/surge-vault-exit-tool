@@ -192,10 +192,10 @@ export default function Home() {
           <div>
             <div>
               <h1 className="text-xl font-bold text-orange-500">
-                Surge Vault Sovereign Recovery Tool
+                Surge Taproot Vault Sovereign Recovery Tool
               </h1>
               <p className="text-gray-500 text-xs mt-0.5">
-                Recover BTC from a Surge vault via the Taproot timelock exit path.
+                Recover BTC from your Surge Taproot Vault via the timelock exit path. Non-custodial, on-chain, verifiable.
               </p>
             </div>
           </div>

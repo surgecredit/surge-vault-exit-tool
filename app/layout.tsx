@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Surge Vault Sovereign Recovery Tool",
+  title: "Surge Taproot Vault Sovereign Recovery Tool",
   description:
-    "Recover BTC from a Surge vault independently using the Taproot timelock exit path. A self-custodial recovery tool that works without Surge backend services.",
+    "Recover BTC from your Surge Taproot Vault independently using the timelock exit path. Non-custodial, on-chain, verifiable — works without Surge backend services.",
 };
 
 export default function RootLayout({

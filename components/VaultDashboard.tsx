@@ -158,13 +158,13 @@ export default function VaultDashboard({
         <div className="px-8 py-16 text-center">
           <div className="mx-auto max-w-2xl">
             <p className="text-[10px] uppercase tracking-[0.32em] text-gray-500">
-              Vault Balance
+              Taproot Vault Balance
             </p>
             <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white">
-              Loading vault data...
+              Loading Taproot Vault data...
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-gray-400">
-              Checking the vault balance and current unlock status.
+              Checking your Taproot Vault balance and current unlock status.
             </p>
           </div>
         </div>
@@ -172,7 +172,7 @@ export default function VaultDashboard({
         <div className="px-8 py-16 text-center">
           <div className="mx-auto max-w-2xl">
             <p className="text-[10px] uppercase tracking-[0.32em] text-gray-500">
-              Vault Balance
+              Taproot Vault Balance
             </p>
             <h2 className="mt-2 flex items-center justify-center gap-2 text-5xl font-semibold tracking-tight text-white">
               <span>0</span>
@@ -196,12 +196,12 @@ export default function VaultDashboard({
               </span>
             </a>
             <p className="mt-10 text-3xl font-semibold tracking-tight text-white">
-              This vault currently holds no BTC.
+              This Taproot Vault currently holds no BTC.
             </p>
             <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-gray-400">
-              This vault currently has no spendable UTXOs.
+              This Taproot Vault currently has no spendable UTXOs.
               <br />
-              Recovery becomes possible once BTC is deposited into the vault and
+              Recovery becomes possible once BTC is deposited into the Taproot Vault and
               the timelock period has passed.
             </p>
 
@@ -212,7 +212,7 @@ export default function VaultDashboard({
         <>
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Vault Address</h2>
+              <h2 className="text-lg font-bold text-white">Taproot Vault Address</h2>
             </div>
 
             <div className="bg-gray-800 rounded-lg p-4 mb-4">
@@ -262,7 +262,7 @@ export default function VaultDashboard({
 
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Vault Timelock Status</h2>
+              <h2 className="text-lg font-bold text-white">Taproot Vault Timelock Status</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={refresh}
@@ -293,7 +293,7 @@ export default function VaultDashboard({
               <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="bg-gray-800 rounded-lg p-3">
                   <span className="text-gray-500 text-xs uppercase">
-                    Vault Balance
+                    Taproot Vault Balance
                   </span>
                   <p className="text-white font-mono text-lg">
                     {formatBtc(totalBalance)}
@@ -392,8 +392,8 @@ export default function VaultDashboard({
                     Transaction Broadcast Successfully!
                   </h3>
                   <p className="text-green-400 text-sm">
-                    The exit transaction has been signed with only your key and
-                    broadcast to the network.
+                    The Taproot Vault exit transaction has been signed with only your key and
+                    broadcast to the network. Non-custodial, on-chain, verifiable.
                   </p>
                 </div>
 
@@ -453,7 +453,7 @@ export default function VaultDashboard({
                 <p className="text-gray-500">
                   No UTXOs are currently eligible for recovery.
                   <br />
-                  Vault exits require a timelock of {timelockBlocks.toLocaleString()} blocks (~1 year).
+                  Taproot Vault exits require a timelock of {timelockBlocks.toLocaleString()} blocks (~1 year).
                   <br />
                   Once the timelock has passed, you will be able to construct and broadcast a recovery transaction.
                 </p>

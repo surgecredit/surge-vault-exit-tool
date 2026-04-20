@@ -82,10 +82,10 @@ export default function ImportWallet({ onWalletImported }: Props) {
     <div className="max-w-lg mx-auto">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">
-          Access Your Vault
+          Access Your Taproot Vault
         </h2>
         <p className="text-gray-400 text-sm">
-          Enter your EVM address and connect UniSat to load the vault on{" "}
+          Enter your EVM address and connect UniSat to load your Taproot Vault on{" "}
           {ACTIVE_NETWORK_CONFIG.networkLabel}.
         </p>
       </div>
