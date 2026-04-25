@@ -4,7 +4,7 @@ Conventions and guardrails for AI coding agents (Claude Code, Cursor, Devin, Cop
 
 ## What this repo is
 
-A self-custodial recovery tool for Surge Taproot Vaults. Pure client-side Next.js 14 app (App Router). No backend. All Bitcoin operations happen in the browser; signing happens in the user's wallet (UniSat).
+A self-custodial exit tool for Surge Taproot Vaults. Pure client-side Next.js 14 app (App Router). No backend. All Bitcoin operations happen in the browser; signing happens in the user's wallet (UniSat).
 
 The vault is a P2TR with a NUMS internal key and three Tapscript leaves. The tool spends the user-only "Exit" leaf after a 52,416-block timelock.
 

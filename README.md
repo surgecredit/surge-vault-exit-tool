@@ -1,4 +1,4 @@
-# Surge Taproot Vault Sovereign Recovery Tool
+# Surge Taproot Vault Exit Tool
 
 Recover BTC from your Surge Taproot Vault independently using the timelock exit path. Non-custodial, on-chain, verifiable.
 
@@ -32,7 +32,7 @@ The vault is a Taproot output (P2TR) with a NUMS internal key (key-path is prova
 | ----------------- | -------------------------------------------------------------------- |
 | Credit Repayment  | 2-of-2 cooperative: borrower + Surge DCN                             |
 | Liquidation       | DCN-only spend, used when credit terms are breached                  |
-| Exit              | Borrower-only sovereign recovery after the timelock (52,416 blocks)  |
+| Exit              | Borrower-only exit after the timelock (52,416 blocks)                |
 
 The exit leaf is the path used by this tool. It enforces `<timelock> OP_CHECKSEQUENCEVERIFY OP_DROP <userPK> OP_CHECKSIG` and requires `nSequence >= timelockBlocks` on the spending input.
 
@@ -136,7 +136,7 @@ export const APP_CONFIG = {
 
 ## Disclaimer
 
-This is a self-custodial recovery tool. You are responsible for verifying every transaction detail (destination, amount, fee) before broadcasting. The authors accept no liability for lost funds.
+This is a self-custodial exit tool. You are responsible for verifying every transaction detail (destination, amount, fee) before broadcasting. The authors accept no liability for lost funds.
 
 ## License
 

@@ -234,11 +234,11 @@ export default function TaprootTreeVisual({
           {
             name: "Path",
             value:
-              "Borrower / user only sovereign recovery after the timelock expires. This is the path used by this tool.",
+              "Borrower / user only exit after the timelock expires. This is the path used by this tool.",
             render: (
               <span className="leading-6">
-                Borrower / {borrowerYou} only sovereign recovery after the
-                timelock expires. This is the path used by this tool.
+                Borrower / {borrowerYou} only exit after the timelock expires.
+                This is the path used by this tool.
               </span>
             ),
           },
@@ -273,8 +273,10 @@ export default function TaprootTreeVisual({
 
   return (
     <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-      <div className="border-b border-gray-800 p-4">
-        <h2 className="text-lg font-bold text-white">Vault Inspector</h2>
+      <div className="border-b border-gray-800 p-3 sm:p-4">
+        <h2 className="text-base sm:text-lg font-bold text-white">
+          Vault Inspector
+        </h2>
         <p className="text-xs text-gray-500 mt-1">
           Explore the Taproot script tree. Click any node to see its details.
         </p>
@@ -339,7 +341,7 @@ export default function TaprootTreeVisual({
         </svg>
       </div>
 
-      <div className="border-t border-gray-800 p-4">
+      <div className="border-t border-gray-800 p-3 sm:p-4">
         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1">
           {node.category}
         </p>

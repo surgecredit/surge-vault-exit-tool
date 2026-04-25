@@ -45,6 +45,18 @@ export default function ImportWallet({ onWalletImported }: Props) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search)
+        .get("address")
+        ?.trim();
+      if (fromUrl) {
+        setEvmInput(fromUrl);
+        return;
+      }
+    } catch {
+      // ignore malformed URL search
+    }
+
     const saved = window.localStorage.getItem(FORM_STORAGE_KEY);
     if (!saved) return;
 

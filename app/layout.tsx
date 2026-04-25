@@ -5,23 +5,23 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Surge Taproot Vault Sovereign Recovery Tool",
+  title: "Surge Taproot Vault Exit Tool",
   description:
-    "Self-custodial recovery tool for Surge Taproot Vaults. Inspect UTXOs, verify exit eligibility, and construct, sign, and broadcast exit transactions.",
+    "Self-custodial exit tool for Surge Taproot Vaults. Inspect UTXOs, verify exit eligibility, and construct, sign, and broadcast exit transactions.",
   icons: {
     icon: "/favicon.ico",
   },
   openGraph: {
-    title: "Surge Taproot Vault Sovereign Recovery Tool",
+    title: "Surge Taproot Vault Exit Tool",
     description:
-      "Inspect vault UTXOs and recover BTC through the Taproot exit path with wallet signing and on-chain broadcast.",
+      "Inspect vault UTXOs and exit BTC through the Taproot exit path with wallet signing and on-chain broadcast.",
     images: ["/surge_logo.png"],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Surge Taproot Vault Sovereign Recovery Tool",
+    title: "Surge Taproot Vault Exit Tool",
     description:
-      "Inspect vault UTXOs and recover BTC through the Taproot exit path with wallet signing and on-chain broadcast.",
+      "Inspect vault UTXOs and exit BTC through the Taproot exit path with wallet signing and on-chain broadcast.",
     images: ["/surge_logo.png"],
   },
 };

@@ -174,7 +174,7 @@ export default function VaultDashboard({
     <div
       className={`grid gap-4 lg:gap-6 lg:grid-cols-12 ${className}`.trim()}
     >
-      <div className="lg:col-span-5 bg-gray-900 rounded-xl p-6 space-y-6">
+      <div className="min-w-0 lg:col-span-5 bg-gray-900 rounded-xl p-4 sm:p-6 space-y-6">
         {loading && !hasAnyUtxos ? (
         <div className="px-4 sm:px-8 py-12 sm:py-16 text-center">
           <div className="mx-auto max-w-2xl">
@@ -242,7 +242,7 @@ export default function VaultDashboard({
                   href={`${BTC_EXPLORER}/address/${vault.address}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-orange-400 hover:text-orange-300 hover:underline font-mono text-sm break-all"
+                  className="min-w-0 flex-1 text-orange-400 hover:text-orange-300 hover:underline font-mono text-sm break-all"
                 >
                   {vault.address}
                 </a>
@@ -468,7 +468,7 @@ export default function VaultDashboard({
                        {exitResult.txid}
                      </a>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <span className="text-gray-500 text-xs uppercase">
                         Amount Sent
@@ -518,7 +518,7 @@ export default function VaultDashboard({
             ) : (
               <>
                 <div className="bg-gray-800 rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <span className="text-gray-500 text-xs uppercase">
                         Exit Eligible UTXOs
@@ -574,7 +574,7 @@ export default function VaultDashboard({
       )}
       </div>
 
-      <div className="lg:col-span-7">
+      <div className="min-w-0 lg:col-span-7">
         <div className="lg:sticky lg:top-24">
           <TaprootTreeVisual
             vault={vault}
