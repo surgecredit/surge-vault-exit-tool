@@ -1,5 +1,4 @@
 import * as bitcoin from "bitcoinjs-lib";
-import { crypto as bcrypto } from "bitcoinjs-lib";
 import ecc from "@bitcoinerlab/secp256k1";
 import {
   NETWORK,
@@ -12,15 +11,6 @@ import { createExitScript } from "./scripts";
 import { VaultInfo } from "./vault";
 
 bitcoin.initEccLib(ecc);
-
-function tapleafHash(leafVersion: number, scriptBuf: Buffer): Buffer {
-  if (scriptBuf.length >= 0xfd) throw new Error("script too large");
-  const ver = Buffer.from([leafVersion]);
-  const len = Buffer.from([scriptBuf.length]);
-  return Buffer.from(
-    bcrypto.taggedHash("TapLeaf", Buffer.concat([ver, len, scriptBuf])),
-  );
-}
 
 export type ExitTransactionResult = {
   txid: string;

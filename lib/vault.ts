@@ -10,8 +10,8 @@ bitcoin.initEccLib(ecc);
 // NUMS point — disables key-path spending
 const NUMS_XONLY = ACTIVE_NETWORK_CONFIG.key;
 
-// Loan vault public key (from the MPC/server)
-const LOAN_VAULT_PUBLIC_KEY = ACTIVE_NETWORK_CONFIG.pubkey;
+// Credit vault public key (from the MPC/server)
+const CREDIT_VAULT_PUBLIC_KEY = ACTIVE_NETWORK_CONFIG.pubkey;
 
 /**
  * Generate a vault ID from an EVM address and nonce.
@@ -29,10 +29,10 @@ export type VaultInfo = {
   address: string;
   vaultId: Buffer;
   internalXOnly: Buffer;
-  loanXOnly: Buffer;
+  creditXOnly: Buffer;
   timelockBlocks: number;
   scriptTree: any;
-  loanRepaymentScript: Buffer;
+  creditRepaymentScript: Buffer;
   liquidationScript: Buffer;
   exitScript: Buffer;
   payment: bitcoin.Payment;
@@ -47,11 +47,11 @@ export function generateVault(
   timelockBlocks: number = DEFAULT_EXIT_TIMELOCK_BLOCKS,
 ): VaultInfo {
   const internalXOnly = Buffer.from(NUMS_XONLY, "hex");
-  const loanXOnly = Buffer.from(LOAN_VAULT_PUBLIC_KEY, "hex");
+  const creditXOnly = Buffer.from(CREDIT_VAULT_PUBLIC_KEY, "hex");
   const vaultId = getVaultId(evmAddress);
 
-  const { scriptTree, loanRepaymentScript, liquidationScript, exitScript } =
-    createScriptTree(userXOnly, loanXOnly, vaultId, timelockBlocks);
+  const { scriptTree, creditRepaymentScript, liquidationScript, exitScript } =
+    createScriptTree(userXOnly, creditXOnly, vaultId, timelockBlocks);
 
   const payment = bitcoin.payments.p2tr({
     internalPubkey: internalXOnly,
@@ -63,10 +63,10 @@ export function generateVault(
     address: payment.address!,
     vaultId,
     internalXOnly,
-    loanXOnly,
+    creditXOnly,
     timelockBlocks,
     scriptTree,
-    loanRepaymentScript,
+    creditRepaymentScript,
     liquidationScript,
     exitScript,
     payment,

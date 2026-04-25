@@ -23,12 +23,50 @@ export type Utxo = {
   };
 };
 
+export type EsploraTxStatus = {
+  confirmed: boolean;
+  block_height?: number;
+  block_hash?: string;
+  block_time?: number;
+};
+
+export type EsploraTxVin = {
+  txid: string;
+  vout: number;
+  prevout?: {
+    scriptpubkey_address?: string;
+    value?: number;
+  };
+  witness?: string[];
+};
+
+export type EsploraTxVout = {
+  scriptpubkey_address?: string;
+  value: number;
+};
+
+export type EsploraTx = {
+  txid: string;
+  status: EsploraTxStatus;
+  vin: EsploraTxVin[];
+  vout: EsploraTxVout[];
+};
+
 /**
  * Fetch UTXOs for an address from the Esplora API.
  */
 export async function getUtxos(address: string): Promise<Utxo[]> {
   const res = await fetch(`${BTC_ESPLORA_API}/address/${address}/utxo`);
   if (!res.ok) throw new Error(`Failed to fetch UTXOs: ${res.statusText}`);
+  return res.json();
+}
+
+/**
+ * Fetch the recent transaction history for an address from the Esplora API.
+ */
+export async function getAddressTxs(address: string): Promise<EsploraTx[]> {
+  const res = await fetch(`${BTC_ESPLORA_API}/address/${address}/txs`);
+  if (!res.ok) throw new Error(`Failed to fetch txs: ${res.statusText}`);
   return res.json();
 }
 

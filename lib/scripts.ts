@@ -4,18 +4,18 @@ import { script } from "bitcoinjs-lib";
 export const DEFAULT_EXIT_TIMELOCK_BLOCKS = 52416;
 
 /**
- * Loan Repayment Script (2-of-2 multisig with vaultId tag)
+ * Credit Repayment Script (2-of-2 multisig with vaultId tag)
  *
- * Script: <vaultId> OP_DROP <userPK> OP_CHECKSIG <loanPK> OP_CHECKSIGADD OP_2 OP_NUMEQUAL
+ * Script: <vaultId> OP_DROP <userPK> OP_CHECKSIG <creditPK> OP_CHECKSIGADD OP_2 OP_NUMEQUAL
  *
- * Requires both user and loan vault signatures.
+ * Requires both user and credit vault signatures.
  */
-export function createLoanRepaymentScript(
+export function createCreditRepaymentScript(
   userXOnly: Buffer,
-  loanXOnly: Buffer,
+  creditXOnly: Buffer,
   vaultId: Buffer,
 ): Buffer {
-  if (userXOnly.length !== 32 || loanXOnly.length !== 32) {
+  if (userXOnly.length !== 32 || creditXOnly.length !== 32) {
     throw new Error("Public keys must be 32-byte x-only for Tapscript");
   }
   if (vaultId.length !== 32) {
@@ -27,7 +27,7 @@ export function createLoanRepaymentScript(
     script.OPS.OP_DROP,
     userXOnly,
     script.OPS.OP_CHECKSIG,
-    loanXOnly,
+    creditXOnly,
     script.OPS.OP_CHECKSIGADD,
     script.OPS.OP_2,
     script.OPS.OP_NUMEQUAL,
@@ -35,18 +35,18 @@ export function createLoanRepaymentScript(
 }
 
 /**
- * Liquidation Script (single-sig, loan vault only)
+ * Liquidation Script (single-sig, credit vault only)
  *
- * Script: <loanPK> OP_CHECKSIG
+ * Script: <creditPK> OP_CHECKSIG
  *
- * Only the loan vault can spend (for liquidation).
+ * Only the credit vault can spend (for liquidation).
  */
-export function createLiquidationScript(loanXOnly: Buffer): Buffer {
-  if (loanXOnly.length !== 32) {
+export function createLiquidationScript(creditXOnly: Buffer): Buffer {
+  if (creditXOnly.length !== 32) {
     throw new Error("Public key must be 32-byte x-only for Tapscript");
   }
 
-  return script.compile([loanXOnly, script.OPS.OP_CHECKSIG]);
+  return script.compile([creditXOnly, script.OPS.OP_CHECKSIG]);
 }
 
 /**
@@ -91,26 +91,26 @@ export function createExitScript(
  */
 export function createScriptTree(
   userXOnly: Buffer,
-  loanXOnly: Buffer,
+  creditXOnly: Buffer,
   vaultId: Buffer,
   timelockBlocks: number = DEFAULT_EXIT_TIMELOCK_BLOCKS,
 ) {
-  const loanRepaymentScript = createLoanRepaymentScript(
+  const creditRepaymentScript = createCreditRepaymentScript(
     userXOnly,
-    loanXOnly,
+    creditXOnly,
     vaultId,
   );
-  const liquidationScript = createLiquidationScript(loanXOnly);
+  const liquidationScript = createLiquidationScript(creditXOnly);
   const exitScript = createExitScript(userXOnly, timelockBlocks);
 
   const scriptTree = [
-    { output: loanRepaymentScript },
+    { output: creditRepaymentScript },
     [{ output: liquidationScript }, { output: exitScript }],
   ];
 
   return {
     scriptTree,
-    loanRepaymentScript,
+    creditRepaymentScript,
     liquidationScript,
     exitScript,
   };

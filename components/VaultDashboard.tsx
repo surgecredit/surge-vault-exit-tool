@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   BTC_EXPLORER,
-  getUtxos,
   getTipHeight,
   NETWORK_LABEL,
   Utxo,
@@ -15,6 +14,12 @@ import {
   ExitTransactionResult,
   finalizeAndBroadcastExitPsbt,
 } from "@/lib/exit-transaction";
+import {
+  SPEND_PATH_LABEL,
+  VaultHistoryEntry,
+  getVaultHistory,
+} from "@/lib/vault-history";
+import TaprootTreeVisual from "./TaprootTreeVisual";
 
 type Props = {
   wallet: WalletInfo;
@@ -29,7 +34,7 @@ export default function VaultDashboard({
   className = "",
   onInitialLoadComplete,
 }: Props) {
-  const [utxos, setUtxos] = useState<Utxo[]>([]);
+  const [history, setHistory] = useState<VaultHistoryEntry[]>([]);
   const [tipHeight, setTipHeight] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,6 +49,7 @@ export default function VaultDashboard({
   const [exitResult, setExitResult] = useState<ExitTransactionResult | null>(
     null,
   );
+  const [inspectOpen, setInspectOpen] = useState(false);
   const initialLoadReportedRef = useRef(false);
 
   const timelockBlocks = vault.timelockBlocks;
@@ -52,11 +58,11 @@ export default function VaultDashboard({
     setLoading(true);
     setError("");
     try {
-      const [fetchedUtxos, height] = await Promise.all([
-        getUtxos(vault.address),
+      const [fetchedHistory, height] = await Promise.all([
+        getVaultHistory(vault),
         getTipHeight(),
       ]);
-      setUtxos(fetchedUtxos);
+      setHistory(fetchedHistory);
       setTipHeight(height);
     } catch (err: any) {
       setError(err.message || "Failed to fetch vault data");
@@ -67,7 +73,7 @@ export default function VaultDashboard({
       }
       setLoading(false);
     }
-  }, [onInitialLoadComplete, vault.address]);
+  }, [onInitialLoadComplete, vault]);
 
   useEffect(() => {
     refresh();
@@ -88,16 +94,29 @@ export default function VaultDashboard({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const totalBalance = utxos.reduce((sum, u) => sum + u.value, 0);
-  const eligibleUtxos = utxos.filter(
-    (u) =>
-      u.status?.confirmed &&
-      tipHeight - u.status.block_height >= timelockBlocks,
+  const unspentEntries = history.filter((e) => !e.spent);
+  const totalBalance = unspentEntries.reduce((sum, e) => sum + e.value, 0);
+  const eligibleEntries = unspentEntries.filter(
+    (e) =>
+      e.receivedBlockHeight !== undefined &&
+      tipHeight - e.receivedBlockHeight >= timelockBlocks,
   );
-  const eligibleBalance = eligibleUtxos.reduce((sum, u) => sum + u.value, 0);
-  const hasEligibleUtxos = eligibleUtxos.length > 0;
-  const hasAnyUtxos = utxos.length > 0;
+  const eligibleBalance = eligibleEntries.reduce((sum, e) => sum + e.value, 0);
+  const hasEligibleUtxos = eligibleEntries.length > 0;
+  const hasAnyUtxos = history.length > 0;
   const shortVaultAddress = `${vault.address.slice(0, 10)}...${vault.address.slice(-10)}`;
+
+  const eligibleUtxosForExit: Utxo[] = eligibleEntries.map((e) => ({
+    txid: e.txid,
+    vout: e.vout,
+    value: e.value,
+    status: {
+      confirmed: e.receivedBlockHeight !== undefined,
+      block_height: e.receivedBlockHeight ?? 0,
+      block_hash: "",
+      block_time: e.receivedBlockTime ?? 0,
+    },
+  }));
 
   const formatBtc = (sats: number) => {
     return (sats / 100_000_000).toFixed(8).replace(/\.0+$|0+$/g, "");
@@ -121,14 +140,14 @@ export default function VaultDashboard({
 
       const buildResult = await buildExitTransaction(
         vault,
-        eligibleUtxos,
+        eligibleUtxosForExit,
         destinationAddress.trim(),
         wallet.xOnlyPublicKey,
       );
 
       const signedPsbtHex = await unisat.signPsbt(buildResult.psbtHex, {
         toSignInputs: Array.from(
-          { length: eligibleUtxos.length },
+          { length: eligibleUtxosForExit.length },
           (_, index) => ({
             index,
             publicKey: wallet.publicKey.toString("hex"),
@@ -213,6 +232,22 @@ export default function VaultDashboard({
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">Taproot Vault Address</h2>
+              <button
+                onClick={() => setInspectOpen((open) => !open)}
+                className="flex items-center gap-1.5 rounded-md bg-gray-800 hover:bg-gray-700 px-3 py-1.5 text-xs text-gray-200 transition"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <circle cx="9" cy="9" r="6" strokeLinecap="round" />
+                  <path d="m17 17-3.5-3.5" strokeLinecap="round" />
+                </svg>
+                {inspectOpen ? "Hide Vault" : "Inspect Vault"}
+              </button>
             </div>
 
             <div className="bg-gray-800 rounded-lg p-4 mb-4">
@@ -258,6 +293,12 @@ export default function VaultDashboard({
                 </div>
               </div>
             </div>
+
+            {inspectOpen && (
+              <div className="mb-4">
+                <TaprootTreeVisual vault={vault} />
+              </div>
+            )}
           </div>
 
           <div>
@@ -313,7 +354,7 @@ export default function VaultDashboard({
                     Exit Eligible UTXOs
                   </span>
                   <p className="text-white font-mono text-lg">
-                    {eligibleUtxos.length} / {utxos.length}
+                    {eligibleEntries.length} / {unspentEntries.length}
                   </p>
                   <p className="text-gray-500 text-xs">
                     Timelock: {timelockBlocks.toLocaleString()} blocks
@@ -321,40 +362,64 @@ export default function VaultDashboard({
                 </div>
               </div>
               <div className="space-y-2">
-                {utxos.map((utxo) => {
-                  const confirmed = utxo.status?.confirmed;
+                {history.map((entry) => {
+                  const confirmed = entry.receivedBlockHeight !== undefined;
                   const blocksElapsed = confirmed
-                    ? tipHeight - utxo.status.block_height
+                    ? tipHeight - (entry.receivedBlockHeight ?? 0)
                     : 0;
                   const timelockMet = blocksElapsed >= timelockBlocks;
                   const blocksRemaining = confirmed
                     ? Math.max(0, timelockBlocks - blocksElapsed)
                     : timelockBlocks;
                   const recoverableAtBlock = confirmed
-                    ? utxo.status.block_height + timelockBlocks
+                    ? (entry.receivedBlockHeight ?? 0) + timelockBlocks
                     : null;
+                  const pathLabel = entry.spendingPath
+                    ? SPEND_PATH_LABEL[entry.spendingPath]
+                    : "Unknown";
 
                   return (
                     <div
-                      key={`${utxo.txid}:${utxo.vout}`}
+                      key={`${entry.txid}:${entry.vout}`}
                       className="bg-gray-800 rounded-lg p-3"
                     >
                       <div className="flex items-center justify-between mb-2">
                         <a
-                          href={`${BTC_EXPLORER}/tx/${utxo.txid}`}
+                          href={`${BTC_EXPLORER}/tx/${entry.txid}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                           className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs"
+                          className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs"
                         >
-                          Tx: {utxo.txid.slice(0, 8)}...
-                          {utxo.txid.slice(-8)}
+                          UTXO: {entry.txid.slice(0, 8)}...
+                          {entry.txid.slice(-8)}:{entry.vout}
                         </a>
-                        <span className="text-white font-mono text-sm">
-                          {formatBtc(utxo.value)} BTC
+                        <span
+                          className={`font-mono text-sm ${
+                            entry.spent ? "text-gray-400 line-through" : "text-white"
+                          }`}
+                        >
+                          {formatBtc(entry.value)} BTC
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs">
-                        {!confirmed ? (
+                      <div className="flex items-center gap-3 text-xs flex-wrap">
+                        {entry.spent ? (
+                          <>
+                            <span className="px-2 py-0.5 bg-gray-700 text-gray-300 rounded">
+                              Spent via {pathLabel}
+                            </span>
+                            {entry.spendingTxid && (
+                              <a
+                                href={`${BTC_EXPLORER}/tx/${entry.spendingTxid}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-400 hover:text-blue-300 hover:underline font-mono"
+                              >
+                                spending tx: {entry.spendingTxid.slice(0, 8)}...
+                                {entry.spendingTxid.slice(-8)}
+                              </a>
+                            )}
+                          </>
+                        ) : !confirmed ? (
                           <span className="px-2 py-0.5 bg-yellow-900 text-yellow-300 rounded">
                             Unconfirmed
                           </span>
@@ -364,14 +429,15 @@ export default function VaultDashboard({
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 bg-red-900 text-red-300 rounded">
-                            Recoverable at block {recoverableAtBlock?.toLocaleString()}
+                            Recoverable at block {" "}
+                            <strong className="font-bold">
+                              {recoverableAtBlock?.toLocaleString()}
+                            </strong>
                           </span>
                         )}
-                        {confirmed && (
+                        {!entry.spent && confirmed && !timelockMet && (
                           <span className="text-gray-500">
-                            {!timelockMet
-                              ? `Remaining blocks: ${blocksRemaining.toLocaleString()}`
-                              : ""}
+                            Remaining blocks: {blocksRemaining.toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -448,7 +514,7 @@ export default function VaultDashboard({
                   Done
                 </button>
               </div>
-            ) : eligibleUtxos.length === 0 ? (
+            ) : eligibleEntries.length === 0 ? (
               <div className="bg-gray-800 rounded-lg p-6 text-center">
                 <p className="text-gray-500">
                   No UTXOs are currently eligible for recovery.
@@ -467,7 +533,7 @@ export default function VaultDashboard({
                         Exit Eligible UTXOs
                       </span>
                       <p className="text-white font-mono">
-                        {eligibleUtxos.length}
+                        {eligibleEntries.length}
                       </p>
                     </div>
                     <div>
