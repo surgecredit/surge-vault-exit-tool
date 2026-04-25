@@ -181,6 +181,11 @@ export default function TaprootTreeVisual({
               </span>
             ),
           },
+          {
+            name: "Vault ID",
+            value: vault.vaultId.toString("hex"),
+            mono: true,
+          },
         ],
         scriptTokens: decodeScript(vault.creditRepaymentScript),
       },

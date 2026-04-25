@@ -77,11 +77,17 @@ export default function ImportWallet({ onWalletImported }: Props) {
     setLoading(true);
 
     try {
-      if (!evmInput.trim()) {
+      const trimmed = evmInput.trim();
+      if (!trimmed) {
         throw new Error("Please enter your credit address");
       }
+      if (!/^0x[0-9a-fA-F]{40}$/.test(trimmed)) {
+        throw new Error(
+          "Invalid credit address. Enter a valid EVM address (0x followed by 40 hex characters).",
+        );
+      }
 
-      const wallet = await connectUniSat(evmInput.trim());
+      const wallet = await connectUniSat(trimmed);
       onWalletImported(wallet);
     } catch (err: any) {
       setError(err.message || "Failed to connect Bitcoin wallet");
