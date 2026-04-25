@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useMemo, useState, useCallback } from "react";
+import { BTC_EXPLORER } from "@/lib/bitcoin";
 import { VaultInfo } from "@/lib/vault";
 import {
   ScriptToken,
@@ -37,6 +38,7 @@ type NodeInfo = {
 
 type Props = {
   vault: VaultInfo;
+  borrowerAddress?: string;
 };
 
 const NODE_FILL: Record<NodeStyle, string> = {
@@ -46,9 +48,36 @@ const NODE_FILL: Record<NodeStyle, string> = {
   leaf: "#b45309",
 };
 
-export default function TaprootTreeVisual({ vault }: Props) {
+export default function TaprootTreeVisual({
+  vault,
+  borrowerAddress,
+}: Props) {
   const [selected, setSelected] = useState<NodeKey>("output");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const borrowerYou = borrowerAddress ? (
+    <a
+      href={`${BTC_EXPLORER}/address/${borrowerAddress}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-orange-400 hover:text-orange-300 hover:underline"
+    >
+      user
+    </a>
+  ) : (
+    <span>user</span>
+  );
+
+  const dcnLink = (
+    <a
+      href="https://signer.surge.credit"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-orange-400 hover:text-orange-300 hover:underline"
+    >
+      DCN (Distributed Custody Network)
+    </a>
+  );
 
   const copyValue = useCallback((key: string, value: string) => {
     navigator.clipboard.writeText(value);
@@ -72,7 +101,21 @@ export default function TaprootTreeVisual({ vault }: Props) {
         category: "Tweaked Output Key",
         style: "output",
         fields: [
-          { name: "Address", value: vault.address, mono: true },
+          {
+            name: "Address",
+            value: vault.address,
+            mono: true,
+            render: (
+              <a
+                href={`${BTC_EXPLORER}/address/${vault.address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-orange-400 hover:text-orange-300 hover:underline break-all"
+              >
+                {vault.address}
+              </a>
+            ),
+          },
           { name: "Output Key", value: outputKeyHex, mono: true },
           {
             name: "Note",
@@ -117,7 +160,7 @@ export default function TaprootTreeVisual({ vault }: Props) {
           {
             name: "Note",
             value:
-              "Root of the Tapscript tree. Three spending paths: credit repayment (cooperative), liquidation (credit vault), and exit (user, after timelock).",
+              "Root of the Tapscript tree. Three spending paths: credit repayment (cooperative), liquidation (DCN), and exit (user, after timelock).",
           },
         ],
       },
@@ -130,7 +173,13 @@ export default function TaprootTreeVisual({ vault }: Props) {
           {
             name: "Path",
             value:
-              "Cooperative repayment. Requires 2-of-2 signatures from user and credit vault.",
+              "Cooperative repayment. Requires 2-of-2 signatures from borrower / user and the Surge DCN (Distributed Custody Network).",
+            render: (
+              <span className="leading-6">
+                Cooperative repayment. Requires 2-of-2 signatures from borrower
+                / {borrowerYou} and the Surge {dcnLink}.
+              </span>
+            ),
           },
         ],
         scriptTokens: decodeScript(vault.creditRepaymentScript),
@@ -161,20 +210,11 @@ export default function TaprootTreeVisual({ vault }: Props) {
           {
             name: "Path",
             value:
-              "Credit-vault-only spend used for liquidation when credit terms are breached. Governed by the Surge DCN (Distributed Custody Network).",
+              "DCN-only spend used for liquidation when credit terms are breached. Governed by the Surge DCN (Distributed Custody Network).",
             render: (
               <span className="leading-6">
-                Credit-vault-only spend used for liquidation when credit terms
-                are breached. Governed by the Surge{" "}
-                <a
-                  href="https://signer.surge.credit"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-orange-400 hover:text-orange-300 hover:underline"
-                >
-                  DCN (Distributed Custody Network)
-                </a>
-                .
+                DCN-only spend used for liquidation when credit terms are
+                breached. Governed by the Surge {dcnLink}.
               </span>
             ),
           },
@@ -194,13 +234,19 @@ export default function TaprootTreeVisual({ vault }: Props) {
           {
             name: "Path",
             value:
-              "User-only sovereign recovery after the timelock expires. This is the path used by this tool.",
+              "Borrower / user only sovereign recovery after the timelock expires. This is the path used by this tool.",
+            render: (
+              <span className="leading-6">
+                Borrower / {borrowerYou} only sovereign recovery after the
+                timelock expires. This is the path used by this tool.
+              </span>
+            ),
           },
         ],
         scriptTokens: decodeScript(vault.exitScript),
       },
     };
-  }, [vault]);
+  }, [vault, borrowerYou, dcnLink]);
 
   const W = 760;
   const H = 440;
@@ -227,11 +273,17 @@ export default function TaprootTreeVisual({ vault }: Props) {
 
   return (
     <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-      <div className="bg-black/40 p-4 overflow-x-auto">
+      <div className="border-b border-gray-800 p-4">
+        <h2 className="text-lg font-bold text-white">Vault Inspector</h2>
+        <p className="text-xs text-gray-500 mt-1">
+          Explore the Taproot script tree. Click any node to see its details.
+        </p>
+      </div>
+      <div className="bg-black/40 p-3 sm:p-4 overflow-x-auto">
         <svg
           viewBox={`0 0 ${W} ${H}`}
           className="w-full"
-          style={{ minWidth: 600, height: "auto" }}
+          style={{ minWidth: 520, height: "auto" }}
         >
           {edges.map(([a, b]) => {
             const pa = positions[a];

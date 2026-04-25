@@ -49,7 +49,6 @@ export default function VaultDashboard({
   const [exitResult, setExitResult] = useState<ExitTransactionResult | null>(
     null,
   );
-  const [inspectOpen, setInspectOpen] = useState(false);
   const initialLoadReportedRef = useRef(false);
 
   const timelockBlocks = vault.timelockBlocks;
@@ -172,9 +171,12 @@ export default function VaultDashboard({
   };
 
   return (
-    <div className={`bg-gray-900 rounded-xl p-6 space-y-6 ${className}`.trim()}>
-      {loading && !hasAnyUtxos ? (
-        <div className="px-8 py-16 text-center">
+    <div
+      className={`grid gap-4 lg:gap-6 lg:grid-cols-12 ${className}`.trim()}
+    >
+      <div className="lg:col-span-5 bg-gray-900 rounded-xl p-6 space-y-6">
+        {loading && !hasAnyUtxos ? (
+        <div className="px-4 sm:px-8 py-12 sm:py-16 text-center">
           <div className="mx-auto max-w-2xl">
             <p className="text-[10px] uppercase tracking-[0.32em] text-gray-500">
               Taproot Vault Balance
@@ -188,7 +190,7 @@ export default function VaultDashboard({
           </div>
         </div>
       ) : !hasAnyUtxos ? (
-        <div className="px-8 py-16 text-center">
+        <div className="px-4 sm:px-8 py-12 sm:py-16 text-center">
           <div className="mx-auto max-w-2xl">
             <p className="text-[10px] uppercase tracking-[0.32em] text-gray-500">
               Taproot Vault Balance
@@ -232,22 +234,6 @@ export default function VaultDashboard({
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">Taproot Vault Address</h2>
-              <button
-                onClick={() => setInspectOpen((open) => !open)}
-                className="flex items-center gap-1.5 rounded-md bg-gray-800 hover:bg-gray-700 px-3 py-1.5 text-xs text-gray-200 transition"
-              >
-                <svg
-                  className="h-3.5 w-3.5"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  <circle cx="9" cy="9" r="6" strokeLinecap="round" />
-                  <path d="m17 17-3.5-3.5" strokeLinecap="round" />
-                </svg>
-                {inspectOpen ? "Hide Vault" : "Inspect Vault"}
-              </button>
             </div>
 
             <div className="bg-gray-800 rounded-lg p-4 mb-4">
@@ -294,11 +280,6 @@ export default function VaultDashboard({
               </div>
             </div>
 
-            {inspectOpen && (
-              <div className="mb-4">
-                <TaprootTreeVisual vault={vault} />
-              </div>
-            )}
           </div>
 
           <div>
@@ -331,12 +312,16 @@ export default function VaultDashboard({
             {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
 
             <>
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                 <div className="bg-gray-800 rounded-lg p-3">
                   <span className="text-gray-500 text-xs uppercase">
                     Taproot Vault Balance
                   </span>
-                  <p className="text-white font-mono text-lg">
+                  <p
+                    className={`font-mono text-lg ${
+                      totalBalance > 0 ? "text-green-400" : "text-white"
+                    }`}
+                  >
                     {formatBtc(totalBalance)}
                   </p>
                   <p className="text-gray-500 text-xs">{totalBalance} sats</p>
@@ -345,9 +330,15 @@ export default function VaultDashboard({
                   <span className="text-gray-500 text-xs uppercase">
                     Current Bitcoin Block
                   </span>
-                  <p className="text-white font-mono text-lg">
+                  <a
+                    href={`${BTC_EXPLORER}/block/${tipHeight}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="View block on explorer"
+                    className="block font-mono text-lg text-sky-400 hover:text-sky-300 hover:underline"
+                  >
                     {tipHeight.toLocaleString()}
-                  </p>
+                  </a>
                 </div>
                 <div className="bg-gray-800 rounded-lg p-3">
                   <span className="text-gray-500 text-xs uppercase">
@@ -383,18 +374,18 @@ export default function VaultDashboard({
                       key={`${entry.txid}:${entry.vout}`}
                       className="bg-gray-800 rounded-lg p-3"
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-2">
                         <a
                           href={`${BTC_EXPLORER}/tx/${entry.txid}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs"
+                          className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs break-all min-w-0"
                         >
                           UTXO: {entry.txid.slice(0, 8)}...
                           {entry.txid.slice(-8)}:{entry.vout}
                         </a>
                         <span
-                          className={`font-mono text-sm ${
+                          className={`font-mono text-sm shrink-0 ${
                             entry.spent ? "text-gray-400 line-through" : "text-white"
                           }`}
                         >
@@ -412,7 +403,7 @@ export default function VaultDashboard({
                                 href={`${BTC_EXPLORER}/tx/${entry.spendingTxid}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-400 hover:text-blue-300 hover:underline font-mono"
+                                className="text-green-400 hover:text-green-300 hover:underline font-mono"
                               >
                                 spending tx: {entry.spendingTxid.slice(0, 8)}...
                                 {entry.spendingTxid.slice(-8)}
@@ -581,6 +572,16 @@ export default function VaultDashboard({
           </div>
         </>
       )}
+      </div>
+
+      <div className="lg:col-span-7">
+        <div className="lg:sticky lg:top-24">
+          <TaprootTreeVisual
+            vault={vault}
+            borrowerAddress={wallet.paymentAddress ?? wallet.taprootAddress}
+          />
+        </div>
+      </div>
     </div>
   );
 }

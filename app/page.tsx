@@ -6,6 +6,7 @@ import ImportWallet from "@/components/ImportWallet";
 import VaultDashboard from "@/components/VaultDashboard";
 import { WalletInfo, walletFromPublicKey } from "@/lib/wallet";
 import { VaultInfo, generateVault } from "@/lib/vault";
+import { BTC_EXPLORER } from "@/lib/bitcoin";
 import packageJson from "@/package.json";
 
 const FORM_STORAGE_KEY = "surge-vault-connect-form";
@@ -189,22 +190,20 @@ export default function Home() {
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
       <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <div>
-            <div>
-              <h1 className="text-xl font-bold text-orange-500">
-                Surge Taproot Vault Sovereign Recovery Tool
-              </h1>
-              <p className="text-gray-500 text-xs mt-0.5">
-                Recover BTC from your Surge Taproot Vault via the exit path. Non-custodial, on-chain, verifiable.
-              </p>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base sm:text-xl font-bold text-orange-500 leading-tight">
+              Surge Taproot Vault Sovereign Recovery Tool
+            </h1>
+            <p className="hidden sm:block text-gray-500 text-xs mt-0.5">
+              Recover BTC from your Surge Taproot Vault via the exit path. Non-custodial, on-chain, verifiable.
+            </p>
           </div>
           {wallet && (
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 onClick={() => setMenuOpen((open) => !open)}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded-lg transition"
+                className="flex items-center gap-2 px-2.5 py-2 sm:px-3 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded-lg transition"
               >
                 <span className="inline-block h-2 w-2 rounded-full bg-green-400" />
                 <span className="font-mono">{walletLabel}</span>
@@ -212,11 +211,74 @@ export default function Home() {
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-36  rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
+                <div className="absolute right-0 mt-2 w-52 rounded-lg border border-gray-700 bg-gray-900 shadow-xl p-1.5 space-y-1">
+                  <a
+                    href={vault ? `${BTC_EXPLORER}/address/${vault.address}` : BTC_EXPLORER}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMenuOpen(false)}
+                    className="w-full rounded-md px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-800 inline-flex items-center justify-between"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <svg
+                        className="w-4 h-4 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M2.25 12.75l8.954-8.955a2.25 2.25 0 013.182 0l5.819 5.818a2.25 2.25 0 010 3.182l-8.955 8.955a2.25 2.25 0 01-3.182 0l-5.818-5.819a2.25 2.25 0 010-3.182z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M7.5 7.5h.008v.008H7.5V7.5z"
+                        />
+                      </svg>
+                      View on Explorer
+                    </span>
+                    <svg
+                      className="w-3.5 h-3.5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M7 17L17 7M17 7H8M17 7v9"
+                      />
+                    </svg>
+                  </a>
                   <button
                     onClick={handleReset}
-                    className="w-full rounded-md px-3 py-2 text-center text-sm text-red-300 hover:bg-gray-800"
+                    className="w-full rounded-md px-3 py-2 text-left text-sm text-red-300 hover:bg-gray-800 inline-flex items-center gap-2"
                   >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-7.5a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 006 21h7.5a2.25 2.25 0 002.25-2.25V15"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 15l3-3m0 0l-3-3m3 3H6"
+                      />
+                    </svg>
                     Disconnect
                   </button>
                 </div>
@@ -227,7 +289,7 @@ export default function Home() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-3xl mx-auto px-4 py-8 flex-1 w-full">
+      <main className="max-w-7xl mx-auto px-4 py-8 flex-1 w-full">
         {!hydrated ? (
           hasStoredSession ? (
             <VaultLoadingState />
@@ -251,7 +313,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-gray-800 mt-auto">
-        <div className="max-w-3xl mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-6">
               <a
