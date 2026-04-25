@@ -1,0 +1,37 @@
+# Surge Taproot Vault Exit Tool
+
+> A Next.js client-side tool that lets a borrower recover BTC from a Surge Taproot Vault via the timelock exit path, without relying on Surge backend services. Non-custodial, on-chain, verifiable.
+
+The tool builds a Taproot script-path PSBT against the user-only "Exit" leaf (`<timelock> OP_CHECKSEQUENCEVERIFY OP_DROP <userPK> OP_CHECKSIG`), signs it with UniSat, and broadcasts via Esplora. The vault uses a NUMS internal key (provably-unspendable, derived as `sha256("SURGE-NUMS")`) so spending is only possible through one of three Tapscript leaves: Credit Repayment (2-of-2 borrower + DCN), Liquidation (DCN-only), or Exit (borrower-only after 52,416 blocks ~ 1 year).
+
+## Docs
+
+- [README](./README.md): full overview, recovery flow, vault tree shape, architecture map, security notes
+- [LICENSE](./LICENSE): MIT-style with non-commercial restriction
+- [AGENTS.md](./AGENTS.md): repo conventions and conventions for AI coding agents
+
+## Source
+
+- [lib/config.ts](./lib/config.ts): network selection, Esplora endpoints, NUMS key, Surge DCN x-only pubkey
+- [lib/scripts.ts](./lib/scripts.ts): Tapscript builders for the three vault leaves and the script tree shape
+- [lib/vault.ts](./lib/vault.ts): deterministic vault generation from `(userXOnly, evmAddress)` via `vaultId = keccak256(abi.encodePacked(addr, 0))`
+- [lib/exit-transaction.ts](./lib/exit-transaction.ts): exit-leaf PSBT construction (control block, leafVersion, nSequence) and broadcast
+- [lib/vault-history.ts](./lib/vault-history.ts): identifies spent UTXOs and detects which leaf script was used
+- [lib/taproot-tree.ts](./lib/taproot-tree.ts): TapLeaf / TapBranch hashing and script decoding for the inspector
+- [lib/wallet.ts](./lib/wallet.ts): wallet derivation (mnemonic, private key, or UniSat-supplied public key)
+- [lib/bitcoin.ts](./lib/bitcoin.ts): Esplora client (UTXOs, address txs, fees, broadcast) and vsize estimator
+
+## UI
+
+- [app/page.tsx](./app/page.tsx): wallet hydration and dashboard/import switching
+- [components/ImportWallet.tsx](./components/ImportWallet.tsx): credit address input + UniSat connect
+- [components/VaultDashboard.tsx](./components/VaultDashboard.tsx): 2-column dashboard (actions left, Vault Inspector right)
+- [components/TaprootTreeVisual.tsx](./components/TaprootTreeVisual.tsx): interactive SVG Taproot tree with decoded leaves
+
+## Optional
+
+- [BIP 341 (Taproot)](https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki)
+- [BIP 342 (Tapscript)](https://github.com/bitcoin/bips/blob/master/bip-0342.mediawiki)
+- [Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md)
+- [Surge](https://surge.build)
+- [Surge DCN signer](https://signer.surge.credit)

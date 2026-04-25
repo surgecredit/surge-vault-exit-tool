@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   BTC_EXPLORER,
-  getUtxos,
   getTipHeight,
   NETWORK_LABEL,
   Utxo,
@@ -15,6 +14,12 @@ import {
   ExitTransactionResult,
   finalizeAndBroadcastExitPsbt,
 } from "@/lib/exit-transaction";
+import {
+  SPEND_PATH_LABEL,
+  VaultHistoryEntry,
+  getVaultHistory,
+} from "@/lib/vault-history";
+import TaprootTreeVisual from "./TaprootTreeVisual";
 
 type Props = {
   wallet: WalletInfo;
@@ -29,7 +34,7 @@ export default function VaultDashboard({
   className = "",
   onInitialLoadComplete,
 }: Props) {
-  const [utxos, setUtxos] = useState<Utxo[]>([]);
+  const [history, setHistory] = useState<VaultHistoryEntry[]>([]);
   const [tipHeight, setTipHeight] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -52,11 +57,11 @@ export default function VaultDashboard({
     setLoading(true);
     setError("");
     try {
-      const [fetchedUtxos, height] = await Promise.all([
-        getUtxos(vault.address),
+      const [fetchedHistory, height] = await Promise.all([
+        getVaultHistory(vault),
         getTipHeight(),
       ]);
-      setUtxos(fetchedUtxos);
+      setHistory(fetchedHistory);
       setTipHeight(height);
     } catch (err: any) {
       setError(err.message || "Failed to fetch vault data");
@@ -67,7 +72,7 @@ export default function VaultDashboard({
       }
       setLoading(false);
     }
-  }, [onInitialLoadComplete, vault.address]);
+  }, [onInitialLoadComplete, vault]);
 
   useEffect(() => {
     refresh();
@@ -88,16 +93,29 @@ export default function VaultDashboard({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const totalBalance = utxos.reduce((sum, u) => sum + u.value, 0);
-  const eligibleUtxos = utxos.filter(
-    (u) =>
-      u.status?.confirmed &&
-      tipHeight - u.status.block_height >= timelockBlocks,
+  const unspentEntries = history.filter((e) => !e.spent);
+  const totalBalance = unspentEntries.reduce((sum, e) => sum + e.value, 0);
+  const eligibleEntries = unspentEntries.filter(
+    (e) =>
+      e.receivedBlockHeight !== undefined &&
+      tipHeight - e.receivedBlockHeight >= timelockBlocks,
   );
-  const eligibleBalance = eligibleUtxos.reduce((sum, u) => sum + u.value, 0);
-  const hasEligibleUtxos = eligibleUtxos.length > 0;
-  const hasAnyUtxos = utxos.length > 0;
+  const eligibleBalance = eligibleEntries.reduce((sum, e) => sum + e.value, 0);
+  const hasEligibleUtxos = eligibleEntries.length > 0;
+  const hasAnyUtxos = history.length > 0;
   const shortVaultAddress = `${vault.address.slice(0, 10)}...${vault.address.slice(-10)}`;
+
+  const eligibleUtxosForExit: Utxo[] = eligibleEntries.map((e) => ({
+    txid: e.txid,
+    vout: e.vout,
+    value: e.value,
+    status: {
+      confirmed: e.receivedBlockHeight !== undefined,
+      block_height: e.receivedBlockHeight ?? 0,
+      block_hash: "",
+      block_time: e.receivedBlockTime ?? 0,
+    },
+  }));
 
   const formatBtc = (sats: number) => {
     return (sats / 100_000_000).toFixed(8).replace(/\.0+$|0+$/g, "");
@@ -121,14 +139,14 @@ export default function VaultDashboard({
 
       const buildResult = await buildExitTransaction(
         vault,
-        eligibleUtxos,
+        eligibleUtxosForExit,
         destinationAddress.trim(),
         wallet.xOnlyPublicKey,
       );
 
       const signedPsbtHex = await unisat.signPsbt(buildResult.psbtHex, {
         toSignInputs: Array.from(
-          { length: eligibleUtxos.length },
+          { length: eligibleUtxosForExit.length },
           (_, index) => ({
             index,
             publicKey: wallet.publicKey.toString("hex"),
@@ -153,9 +171,12 @@ export default function VaultDashboard({
   };
 
   return (
-    <div className={`bg-gray-900 rounded-xl p-6 space-y-6 ${className}`.trim()}>
-      {loading && !hasAnyUtxos ? (
-        <div className="px-8 py-16 text-center">
+    <div
+      className={`grid gap-4 lg:gap-6 lg:grid-cols-12 ${className}`.trim()}
+    >
+      <div className="min-w-0 lg:col-span-5 bg-gray-900 rounded-xl p-4 sm:p-6 space-y-6">
+        {loading && !hasAnyUtxos ? (
+        <div className="px-4 sm:px-8 py-12 sm:py-16 text-center">
           <div className="mx-auto max-w-2xl">
             <p className="text-[10px] uppercase tracking-[0.32em] text-gray-500">
               Taproot Vault Balance
@@ -169,7 +190,7 @@ export default function VaultDashboard({
           </div>
         </div>
       ) : !hasAnyUtxos ? (
-        <div className="px-8 py-16 text-center">
+        <div className="px-4 sm:px-8 py-12 sm:py-16 text-center">
           <div className="mx-auto max-w-2xl">
             <p className="text-[10px] uppercase tracking-[0.32em] text-gray-500">
               Taproot Vault Balance
@@ -221,7 +242,7 @@ export default function VaultDashboard({
                   href={`${BTC_EXPLORER}/address/${vault.address}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-orange-400 hover:text-orange-300 hover:underline font-mono text-sm break-all"
+                  className="min-w-0 flex-1 text-orange-400 hover:text-orange-300 hover:underline font-mono text-sm break-all"
                 >
                   {vault.address}
                 </a>
@@ -258,6 +279,7 @@ export default function VaultDashboard({
                 </div>
               </div>
             </div>
+
           </div>
 
           <div>
@@ -290,12 +312,16 @@ export default function VaultDashboard({
             {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
 
             <>
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                 <div className="bg-gray-800 rounded-lg p-3">
                   <span className="text-gray-500 text-xs uppercase">
                     Taproot Vault Balance
                   </span>
-                  <p className="text-white font-mono text-lg">
+                  <p
+                    className={`font-mono text-lg ${
+                      totalBalance > 0 ? "text-green-400" : "text-white"
+                    }`}
+                  >
                     {formatBtc(totalBalance)}
                   </p>
                   <p className="text-gray-500 text-xs">{totalBalance} sats</p>
@@ -304,16 +330,22 @@ export default function VaultDashboard({
                   <span className="text-gray-500 text-xs uppercase">
                     Current Bitcoin Block
                   </span>
-                  <p className="text-white font-mono text-lg">
+                  <a
+                    href={`${BTC_EXPLORER}/block/${tipHeight}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="View block on explorer"
+                    className="block font-mono text-lg text-sky-400 hover:text-sky-300 hover:underline"
+                  >
                     {tipHeight.toLocaleString()}
-                  </p>
+                  </a>
                 </div>
                 <div className="bg-gray-800 rounded-lg p-3">
                   <span className="text-gray-500 text-xs uppercase">
                     Exit Eligible UTXOs
                   </span>
                   <p className="text-white font-mono text-lg">
-                    {eligibleUtxos.length} / {utxos.length}
+                    {eligibleEntries.length} / {unspentEntries.length}
                   </p>
                   <p className="text-gray-500 text-xs">
                     Timelock: {timelockBlocks.toLocaleString()} blocks
@@ -321,40 +353,64 @@ export default function VaultDashboard({
                 </div>
               </div>
               <div className="space-y-2">
-                {utxos.map((utxo) => {
-                  const confirmed = utxo.status?.confirmed;
+                {history.map((entry) => {
+                  const confirmed = entry.receivedBlockHeight !== undefined;
                   const blocksElapsed = confirmed
-                    ? tipHeight - utxo.status.block_height
+                    ? tipHeight - (entry.receivedBlockHeight ?? 0)
                     : 0;
                   const timelockMet = blocksElapsed >= timelockBlocks;
                   const blocksRemaining = confirmed
                     ? Math.max(0, timelockBlocks - blocksElapsed)
                     : timelockBlocks;
                   const recoverableAtBlock = confirmed
-                    ? utxo.status.block_height + timelockBlocks
+                    ? (entry.receivedBlockHeight ?? 0) + timelockBlocks
                     : null;
+                  const pathLabel = entry.spendingPath
+                    ? SPEND_PATH_LABEL[entry.spendingPath]
+                    : "Unknown";
 
                   return (
                     <div
-                      key={`${utxo.txid}:${utxo.vout}`}
+                      key={`${entry.txid}:${entry.vout}`}
                       className="bg-gray-800 rounded-lg p-3"
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-2">
                         <a
-                          href={`${BTC_EXPLORER}/tx/${utxo.txid}`}
+                          href={`${BTC_EXPLORER}/tx/${entry.txid}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                           className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs"
+                          className="text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs break-all min-w-0"
                         >
-                          Tx: {utxo.txid.slice(0, 8)}...
-                          {utxo.txid.slice(-8)}
+                          UTXO: {entry.txid.slice(0, 8)}...
+                          {entry.txid.slice(-8)}:{entry.vout}
                         </a>
-                        <span className="text-white font-mono text-sm">
-                          {formatBtc(utxo.value)} BTC
+                        <span
+                          className={`font-mono text-sm shrink-0 ${
+                            entry.spent ? "text-gray-400 line-through" : "text-white"
+                          }`}
+                        >
+                          {formatBtc(entry.value)} BTC
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs">
-                        {!confirmed ? (
+                      <div className="flex items-center gap-3 text-xs flex-wrap">
+                        {entry.spent ? (
+                          <>
+                            <span className="px-2 py-0.5 bg-gray-700 text-gray-300 rounded">
+                              Spent via {pathLabel}
+                            </span>
+                            {entry.spendingTxid && (
+                              <a
+                                href={`${BTC_EXPLORER}/tx/${entry.spendingTxid}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-400 hover:text-green-300 hover:underline font-mono"
+                              >
+                                spending tx: {entry.spendingTxid.slice(0, 8)}...
+                                {entry.spendingTxid.slice(-8)}
+                              </a>
+                            )}
+                          </>
+                        ) : !confirmed ? (
                           <span className="px-2 py-0.5 bg-yellow-900 text-yellow-300 rounded">
                             Unconfirmed
                           </span>
@@ -364,14 +420,15 @@ export default function VaultDashboard({
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 bg-red-900 text-red-300 rounded">
-                            Recoverable at block {recoverableAtBlock?.toLocaleString()}
+                            Recoverable at block {" "}
+                            <strong className="font-bold">
+                              {recoverableAtBlock?.toLocaleString()}
+                            </strong>
                           </span>
                         )}
-                        {confirmed && (
+                        {!entry.spent && confirmed && !timelockMet && (
                           <span className="text-gray-500">
-                            {!timelockMet
-                              ? `Remaining blocks: ${blocksRemaining.toLocaleString()}`
-                              : ""}
+                            Remaining blocks: {blocksRemaining.toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -411,7 +468,7 @@ export default function VaultDashboard({
                        {exitResult.txid}
                      </a>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <span className="text-gray-500 text-xs uppercase">
                         Amount Sent
@@ -448,7 +505,7 @@ export default function VaultDashboard({
                   Done
                 </button>
               </div>
-            ) : eligibleUtxos.length === 0 ? (
+            ) : eligibleEntries.length === 0 ? (
               <div className="bg-gray-800 rounded-lg p-6 text-center">
                 <p className="text-gray-500">
                   No UTXOs are currently eligible for recovery.
@@ -461,13 +518,13 @@ export default function VaultDashboard({
             ) : (
               <>
                 <div className="bg-gray-800 rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <span className="text-gray-500 text-xs uppercase">
                         Exit Eligible UTXOs
                       </span>
                       <p className="text-white font-mono">
-                        {eligibleUtxos.length}
+                        {eligibleEntries.length}
                       </p>
                     </div>
                     <div>
@@ -515,6 +572,16 @@ export default function VaultDashboard({
           </div>
         </>
       )}
+      </div>
+
+      <div className="min-w-0 lg:col-span-7">
+        <div className="lg:sticky lg:top-24">
+          <TaprootTreeVisual
+            vault={vault}
+            borrowerAddress={wallet.paymentAddress ?? wallet.taprootAddress}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -45,6 +45,18 @@ export default function ImportWallet({ onWalletImported }: Props) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search)
+        .get("address")
+        ?.trim();
+      if (fromUrl) {
+        setEvmInput(fromUrl);
+        return;
+      }
+    } catch {
+      // ignore malformed URL search
+    }
+
     const saved = window.localStorage.getItem(FORM_STORAGE_KEY);
     if (!saved) return;
 
@@ -66,13 +78,13 @@ export default function ImportWallet({ onWalletImported }: Props) {
 
     try {
       if (!evmInput.trim()) {
-        throw new Error("Please enter your EVM address");
+        throw new Error("Please enter your credit address");
       }
 
       const wallet = await connectUniSat(evmInput.trim());
       onWalletImported(wallet);
     } catch (err: any) {
-      setError(err.message || "Failed to connect UniSat");
+      setError(err.message || "Failed to connect Bitcoin wallet");
     } finally {
       setLoading(false);
     }
@@ -85,15 +97,15 @@ export default function ImportWallet({ onWalletImported }: Props) {
           Access Your Taproot Vault
         </h2>
         <p className="text-gray-400 text-sm">
-          Enter your EVM address and connect UniSat to load your Taproot Vault on{" "}
-          {ACTIVE_NETWORK_CONFIG.networkLabel}.
+          Enter your credit address and connect your Bitcoin wallet to load your
+          Taproot Vault on {ACTIVE_NETWORK_CONFIG.networkLabel}.
         </p>
       </div>
 
       <div className="bg-gray-900 rounded-xl p-6 border border-gray-700 space-y-4">
         <div>
           <label className="text-gray-400 text-sm mb-1 block">
-            EVM Address
+            Credit Address
           </label>
           <input
             type="text"
@@ -102,6 +114,9 @@ export default function ImportWallet({ onWalletImported }: Props) {
             placeholder="0x..."
             className="w-full bg-gray-800 text-white rounded-lg p-3 text-sm border border-gray-600 focus:border-orange-500 focus:outline-none font-mono"
           />
+          <p className="text-gray-500 text-xs mt-1">
+            The address you used when opening your Surge Credit Line.
+          </p>
         </div>
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -111,7 +126,7 @@ export default function ImportWallet({ onWalletImported }: Props) {
           disabled={loading}
           className="!mt-6 w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium py-3 rounded-lg transition"
         >
-          {loading ? "Connecting UniSat..." : "Connect UniSat"}
+          {loading ? "Connecting Bitcoin Wallet..." : "Connect Bitcoin Wallet"}
         </button>
 
         <p className="text-xs text-gray-500 text-center">
