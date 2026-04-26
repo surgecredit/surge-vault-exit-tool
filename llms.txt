@@ -1,4 +1,4 @@
-# Surge Taproot Vault Exit Tool
+# Surge Unilateral Exit Tool
 
 > A Next.js client-side tool that lets a borrower recover BTC from a Surge Taproot Vault via the timelock exit path, without relying on Surge backend services. Non-custodial, on-chain, verifiable.
 

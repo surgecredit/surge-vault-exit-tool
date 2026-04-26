@@ -115,6 +115,8 @@ export default function Home() {
       const parsed = JSON.parse(saved) as {
         publicKeyHex?: string;
         paymentAddress?: string;
+        signingAddress?: string;
+        walletProvider?: "unisat" | "xverse";
         evmAddress?: string;
       };
 
@@ -128,6 +130,10 @@ export default function Home() {
         parsed.publicKeyHex,
         parsed.evmAddress,
         parsed.paymentAddress,
+        {
+          signingAddress: parsed.signingAddress,
+          walletProvider: parsed.walletProvider,
+        },
       );
 
       if (!cancelled) {
@@ -162,12 +168,14 @@ export default function Home() {
     setVault(v);
     window.localStorage.setItem(
       SESSION_STORAGE_KEY,
-      JSON.stringify({
-        publicKeyHex: w.publicKey.toString("hex"),
-        paymentAddress: w.paymentAddress,
-        evmAddress: w.evmAddress,
-      }),
-    );
+        JSON.stringify({
+          publicKeyHex: w.publicKey.toString("hex"),
+          paymentAddress: w.paymentAddress,
+          signingAddress: w.signingAddress,
+          walletProvider: w.walletProvider,
+          evmAddress: w.evmAddress,
+        }),
+      );
   };
 
   const handleReset = () => {
@@ -192,7 +200,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h1 className="text-base sm:text-xl font-bold text-orange-500 leading-tight">
-              Surge Taproot Vault Exit Tool
+              Surge Unilateral Exit Tool
             </h1>
             <p className="hidden sm:block text-gray-500 text-xs mt-0.5">
               Recover BTC from your Surge Taproot Vault via the exit path. Non-custodial, on-chain, verifiable.
@@ -312,18 +320,16 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-gray-800 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6">
+          <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-3 sm:p-4">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5 sm:gap-3">
                 <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-300">
                   Open Source
                 </span>
-                <p className="text-sm text-gray-300 leading-6">
-                  This is the Surge-hosted build of the exit tool. The full
-                  source is on GitHub. You can audit it, fork it, or self-host
-                  your own instance so recovery never depends on a single
-                  provider.
+                <p className="text-xs sm:text-sm text-gray-300 leading-5 sm:leading-6">
+                  This is the Surge-hosted build. Audit the code on GitHub or
+                  self-host your own instance for independent recovery.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
@@ -331,7 +337,7 @@ export default function Home() {
                   href="https://github.com/surgecredit/surge-vault-exit-tool"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-gray-800 hover:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-100 transition"
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-gray-800 hover:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-100 transition"
                 >
                   <svg
                     className="w-3.5 h-3.5"
@@ -351,7 +357,7 @@ export default function Home() {
                   href="https://github.com/surgecredit/surge-vault-exit-tool#run-locally"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-700 hover:border-orange-500/60 px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-orange-300 transition"
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-700 hover:border-orange-500/60 px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-orange-300 transition"
                 >
                   Self-host guide
                 </a>

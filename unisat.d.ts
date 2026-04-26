@@ -18,6 +18,19 @@ interface Window {
       },
     ): Promise<string>;
   };
+  BitcoinProvider?: {
+    request(method: string, params?: unknown): Promise<unknown>;
+  };
+  XverseProviders?: {
+    BitcoinProvider?: {
+      request(method: string, params?: unknown): Promise<unknown>;
+    };
+  };
+  xverseProviders?: {
+    BitcoinProvider?: {
+      request(method: string, params?: unknown): Promise<unknown>;
+    };
+  };
 }
 
 export {};

@@ -36,13 +36,121 @@ async function connectUniSat(evmAddress: string) {
     throw new Error("Failed to get public key from UniSat");
   }
 
-  return walletFromPublicKey(publicKeyHex, evmAddress, accounts[0]);
+  return walletFromPublicKey(publicKeyHex, evmAddress, accounts[0], {
+    signingAddress: accounts[0],
+    walletProvider: "unisat",
+  });
+}
+
+function getXverseProvider() {
+  return (
+    (window as any).XverseProviders?.BitcoinProvider ||
+    (window as any).xverseProviders?.BitcoinProvider ||
+    (window as any).BitcoinProvider
+  );
+}
+
+function unwrapWalletResponse(response: any) {
+  if (response?.status === "error") {
+    throw new Error(response.error?.message || "Wallet request failed");
+  }
+  return response?.status === "success" ? response.result : response;
+}
+
+async function connectXverse(evmAddress: string) {
+  const provider = getXverseProvider();
+
+  if (typeof window === "undefined" || !provider) {
+    window.open("https://www.xverse.app", "_blank");
+    throw new Error(
+      "Xverse wallet not detected. Please install the extension.",
+    );
+  }
+
+  const connectResult = unwrapWalletResponse(
+    await provider.request("wallet_connect", {
+      addresses: ["ordinals", "payment"],
+      network: ACTIVE_NETWORK_CONFIG.networkLabel,
+      message: "Connect to the Surge Unilateral Exit Tool",
+    }),
+  );
+
+  const addresses = connectResult?.addresses || connectResult?.addressses;
+  if (!Array.isArray(addresses) || addresses.length === 0) {
+    throw new Error("No Xverse account available");
+  }
+
+  const ordinalsAccount = addresses.find(
+    (item: any) => item?.purpose === "ordinals",
+  );
+  const paymentAccount = addresses.find(
+    (item: any) => item?.purpose === "payment",
+  );
+
+  if (!ordinalsAccount?.publicKey) {
+    throw new Error("Failed to get ordinals public key from Xverse");
+  }
+
+  return walletFromPublicKey(
+    ordinalsAccount.publicKey,
+    evmAddress,
+    paymentAccount?.address,
+    {
+      signingAddress: ordinalsAccount.address,
+      walletProvider: "xverse",
+    },
+  );
+}
+
+type WalletProvider = "unisat" | "xverse";
+
+async function connectWallet(
+  evmAddress: string,
+  preferredProvider?: WalletProvider,
+) {
+  if (preferredProvider === "unisat") {
+    return connectUniSat(evmAddress);
+  }
+
+  if (preferredProvider === "xverse") {
+    return connectXverse(evmAddress);
+  }
+
+  if ((window as any).unisat) {
+    return connectUniSat(evmAddress);
+  }
+
+  if (getXverseProvider()) {
+    return connectXverse(evmAddress);
+  }
+
+  window.open("https://unisat.io", "_blank");
+  throw new Error(
+    "No supported wallet detected. Install UniSat or Xverse extension.",
+  );
 }
 
 export default function ImportWallet({ onWalletImported }: Props) {
   const [evmInput, setEvmInput] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [detectedProvider, setDetectedProvider] =
+    useState<WalletProvider | null>(null);
+
+  useEffect(() => {
+    const detect = () => {
+      if ((window as any).unisat) {
+        setDetectedProvider("unisat");
+      } else if (getXverseProvider()) {
+        setDetectedProvider("xverse");
+      } else {
+        setDetectedProvider(null);
+      }
+    };
+    detect();
+    const interval = window.setInterval(detect, 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     try {
@@ -87,7 +195,7 @@ export default function ImportWallet({ onWalletImported }: Props) {
         );
       }
 
-      const wallet = await connectUniSat(trimmed);
+      const wallet = await connectWallet(trimmed, detectedProvider ?? undefined);
       onWalletImported(wallet);
     } catch (err: any) {
       setError(err.message || "Failed to connect Bitcoin wallet");
@@ -95,6 +203,8 @@ export default function ImportWallet({ onWalletImported }: Props) {
       setLoading(false);
     }
   };
+
+  const buttonLabel = loading ? "Connecting..." : "Connect Bitcoin Wallet";
 
   return (
     <div className="max-w-lg mx-auto">
@@ -128,11 +238,11 @@ export default function ImportWallet({ onWalletImported }: Props) {
         {error && <p className="text-red-400 text-sm">{error}</p>}
 
         <button
-          onClick={handleConnect}
+          onClick={() => handleConnect()}
           disabled={loading}
           className="!mt-6 w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium py-3 rounded-lg transition"
         >
-          {loading ? "Connecting Bitcoin Wallet..." : "Connect Bitcoin Wallet"}
+          {buttonLabel}
         </button>
 
         <p className="text-xs text-gray-500 text-center">

@@ -19,7 +19,14 @@ export type WalletInfo = {
   xOnlyPublicKey: Buffer;
   taprootAddress: string;
   paymentAddress?: string;
+  signingAddress?: string;
+  walletProvider?: "unisat" | "xverse";
   evmAddress: string;
+};
+
+type WalletFromPublicKeyOptions = {
+  signingAddress?: string;
+  walletProvider?: "unisat" | "xverse";
 };
 
 /**
@@ -108,15 +115,17 @@ export function walletFromPublicKey(
   publicKeyHex: string,
   evmAddress: string,
   paymentAddress?: string,
+  options?: WalletFromPublicKeyOptions,
 ): WalletInfo {
   const cleaned = publicKeyHex.replace(/^0x/, "").trim();
   const publicKey = Buffer.from(cleaned, "hex");
 
-  if (publicKey.length !== 33) {
-    throw new Error("UniSat returned an invalid compressed public key");
+  if (publicKey.length !== 32 && publicKey.length !== 33) {
+    throw new Error("Wallet returned an invalid public key");
   }
 
-  const xOnlyPublicKey = publicKey.subarray(1, 33);
+  const xOnlyPublicKey =
+    publicKey.length === 32 ? publicKey : publicKey.subarray(1, 33);
 
   const p2tr = bitcoin.payments.p2tr({
     pubkey: xOnlyPublicKey,
@@ -128,6 +137,8 @@ export function walletFromPublicKey(
     xOnlyPublicKey,
     taprootAddress: p2tr.address!,
     paymentAddress,
+    signingAddress: options?.signingAddress,
+    walletProvider: options?.walletProvider,
     evmAddress,
   };
 }

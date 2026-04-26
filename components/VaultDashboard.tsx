@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import * as bitcoin from "bitcoinjs-lib";
 import {
   BTC_EXPLORER,
   getTipHeight,
@@ -20,6 +21,21 @@ import {
   getVaultHistory,
 } from "@/lib/vault-history";
 import TaprootTreeVisual from "./TaprootTreeVisual";
+
+function getXverseProvider() {
+  return (
+    (window as any).XverseProviders?.BitcoinProvider ||
+    (window as any).xverseProviders?.BitcoinProvider ||
+    (window as any).BitcoinProvider
+  );
+}
+
+function unwrapWalletResponse(response: any) {
+  if (response?.status === "error") {
+    throw new Error(response.error?.message || "Wallet request failed");
+  }
+  return response?.status === "success" ? response.result : response;
+}
 
 type Props = {
   wallet: WalletInfo;
@@ -126,15 +142,8 @@ export default function VaultDashboard({
     setExitResult(null);
     setExecuting(true);
     try {
-      const unisat = (window as any).unisat;
-
       if (!destinationAddress.trim()) {
         throw new Error("Please enter a destination address");
-      }
-      if (typeof window === "undefined" || !unisat) {
-        throw new Error(
-          "UniSat wallet not detected. Please install or unlock it.",
-        );
       }
 
       const buildResult = await buildExitTransaction(
@@ -144,17 +153,56 @@ export default function VaultDashboard({
         wallet.xOnlyPublicKey,
       );
 
-      const signedPsbtHex = await unisat.signPsbt(buildResult.psbtHex, {
-        toSignInputs: Array.from(
-          { length: eligibleUtxosForExit.length },
-          (_, index) => ({
-            index,
-            publicKey: wallet.publicKey.toString("hex"),
-            disableTweakSigner: true,
+      const walletProvider = wallet.walletProvider || "unisat";
+      let signedPsbtHex: string;
+
+      if (walletProvider === "xverse") {
+        const xverseProvider = getXverseProvider();
+        if (typeof window === "undefined" || !xverseProvider) {
+          throw new Error(
+            "Xverse wallet not detected. Please install or unlock it.",
+          );
+        }
+
+        const xverseSigningAddress = wallet.signingAddress || wallet.taprootAddress;
+        const signResult = unwrapWalletResponse(
+          await xverseProvider.request("signPsbt", {
+            psbt: bitcoin.Psbt.fromHex(buildResult.psbtHex).toBase64(),
+            signInputs: {
+              [xverseSigningAddress]: Array.from(
+                { length: eligibleUtxosForExit.length },
+                (_, index) => index,
+              ),
+            },
+            broadcast: false,
           }),
-        ),
-        autoFinalized: false,
-      });
+        );
+
+        if (!signResult?.psbt) {
+          throw new Error("Xverse did not return a signed PSBT");
+        }
+
+        signedPsbtHex = bitcoin.Psbt.fromBase64(signResult.psbt).toHex();
+      } else {
+        const unisat = (window as any).unisat;
+        if (typeof window === "undefined" || !unisat) {
+          throw new Error(
+            "UniSat wallet not detected. Please install or unlock it.",
+          );
+        }
+
+        signedPsbtHex = await unisat.signPsbt(buildResult.psbtHex, {
+          toSignInputs: Array.from(
+            { length: eligibleUtxosForExit.length },
+            (_, index) => ({
+              index,
+              publicKey: wallet.publicKey.toString("hex"),
+              disableTweakSigner: true,
+            }),
+          ),
+          autoFinalized: false,
+        });
+      }
 
       const result = await finalizeAndBroadcastExitPsbt(
         signedPsbtHex,

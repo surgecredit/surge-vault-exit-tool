@@ -1,4 +1,4 @@
-# Surge Taproot Vault Exit Tool
+# Surge Unilateral Exit Tool
 
 Recover BTC from your Surge Taproot Vault independently using the timelock exit path. Non-custodial, on-chain, verifiable.
 
