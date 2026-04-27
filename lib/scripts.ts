@@ -1,7 +1,7 @@
 import { script } from "bitcoinjs-lib";
 
 // Default timelock matching production (52416 blocks ~ 1 year)
-export const DEFAULT_EXIT_TIMELOCK_BLOCKS = 1;
+export const DEFAULT_EXIT_TIMELOCK_BLOCKS = 52416;
 
 /**
  * Credit Repayment Script (2-of-2 multisig with vaultId tag)
