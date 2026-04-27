@@ -23,6 +23,12 @@ import {
 import TaprootTreeVisual from "./TaprootTreeVisual";
 import Wallet, { RpcErrorCode } from "sats-connect";
 
+function hexToBytes(hex: string) {
+  return Uint8Array.from(
+    hex.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)) || [],
+  );
+}
+
 type Props = {
   wallet: WalletInfo;
   vault: VaultInfo;
@@ -186,16 +192,20 @@ export default function VaultDashboard({
           throw new Error("Phantom wallet did not provide a signing address");
         }
 
-        signedPsbtHex = await phantomBitcoin.signPSBT(buildResult.psbtHex, {
+        const signedPsbtBytes = await phantomBitcoin.signPSBT(
+          hexToBytes(buildResult.psbtHex),
+          {
           inputsToSign: Array.from(
             { length: eligibleUtxosForExit.length },
             (_, index) => ({
               address: signingAddress,
               signingIndexes: [index],
-              sigHash: 0x01,
             }),
           ),
-        });
+          },
+        );
+
+        signedPsbtHex = Buffer.from(signedPsbtBytes).toString("hex");
       } else {
         const unisat = (window as any).unisat;
         if (typeof window === "undefined" || !unisat) {
