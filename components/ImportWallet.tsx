@@ -396,7 +396,7 @@ export default function ImportWallet({ onWalletImported }: Props) {
         </p>
       </div>
 
-      <div className="bg-gray-900 rounded-xl p-6 border border-gray-700 space-y-4">
+      <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 sm:p-6 space-y-4">
         <div>
           <label className="text-gray-400 text-sm mb-1 block">
             Credit Address
@@ -406,7 +406,7 @@ export default function ImportWallet({ onWalletImported }: Props) {
             value={evmInput}
             onChange={(e) => setEvmInput(e.target.value)}
             placeholder="0x..."
-            className="w-full bg-gray-800 text-white rounded-lg p-3 text-sm border border-gray-600 focus:border-orange-500 focus:outline-none font-mono"
+            className="w-full bg-gray-800 text-white rounded-lg p-3 text-xs sm:text-sm border border-gray-600 focus:border-orange-500 focus:outline-none font-mono"
           />
           <p className="text-gray-500 text-xs mt-1">
             The address you used when opening your Surge Credit Line.
@@ -434,22 +434,34 @@ export default function ImportWallet({ onWalletImported }: Props) {
       </div>
 
       {walletModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-2xl border border-gray-700 bg-gray-900 p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-950/80 p-3 sm:flex sm:items-center sm:justify-center sm:p-4 backdrop-blur-sm">
+          <div className="mx-auto w-full max-w-xl rounded-2xl border border-gray-700 bg-gray-900 p-4 shadow-2xl sm:p-5 max-h-[calc(100vh-1.5rem)] overflow-y-auto sm:max-h-[85vh]">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setWalletModalOpen(false)}
+                aria-label="Close wallet chooser"
+                className="absolute right-0 top-0 rounded-lg border border-gray-700 p-2 text-gray-300 transition hover:border-gray-600 hover:text-white"
+              >
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path strokeLinecap="round" d="M5 5l10 10M15 5 5 15" />
+                </svg>
+              </button>
+
+              <div className="pr-12">
               <div>
                 <h3 className="text-lg font-semibold text-white">Choose Bitcoin Wallet</h3>
                 <p className="mt-1 text-sm text-gray-400">
                   Pick the wallet you want to use for connection and signing.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setWalletModalOpen(false)}
-                className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition hover:border-gray-600 hover:text-white"
-              >
-                Close
-              </button>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -470,7 +482,7 @@ export default function ImportWallet({ onWalletImported }: Props) {
                     }}
                     disabled={isDisabled}
                     className={[
-                      "rounded-xl border p-4 text-left transition",
+                      "rounded-xl border p-3.5 sm:p-4 text-left transition",
                       isDisabled
                         ? "cursor-not-allowed border-gray-800 bg-gray-900/60 opacity-60"
                         : "border-gray-700 bg-gray-800 hover:border-gray-600",
@@ -500,7 +512,7 @@ export default function ImportWallet({ onWalletImported }: Props) {
                             : "Not detected"}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-gray-400">
+                    <p className="mt-3 text-sm leading-5 sm:leading-6 text-gray-400">
                       {provider === "unisat"
                         ? "Best for direct extension-based signing."
                         : provider === "xverse"

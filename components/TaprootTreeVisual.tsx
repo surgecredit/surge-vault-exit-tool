@@ -290,7 +290,7 @@ export default function TaprootTreeVisual({
         <svg
           viewBox={`0 0 ${W} ${H}`}
           className="w-full"
-          style={{ minWidth: 520, height: "auto" }}
+          style={{ minWidth: 440, height: "auto" }}
         >
           {edges.map(([a, b]) => {
             const pa = positions[a];
@@ -359,14 +359,14 @@ export default function TaprootTreeVisual({
             return (
               <div
                 key={f.name}
-                className="flex flex-col sm:flex-row sm:gap-4 sm:items-start"
+                className="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-4"
               >
-                <span className="text-gray-500 text-[10px] uppercase tracking-wider sm:w-32 sm:text-right pt-1 shrink-0">
+                <span className="text-gray-500 text-[10px] uppercase tracking-wider sm:w-32 sm:text-right sm:pt-1 shrink-0">
                   {f.name}
                 </span>
                 <div className="flex flex-1 items-start gap-2 min-w-0">
                   <span
-                    className={`flex-1 text-sm text-white min-w-0 ${
+                    className={`flex-1 min-w-0 text-xs sm:text-sm text-white ${
                       f.mono ? "font-mono break-all" : "leading-6"
                     }`}
                   >
