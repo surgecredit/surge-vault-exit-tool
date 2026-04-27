@@ -23,6 +23,12 @@ import {
 import TaprootTreeVisual from "./TaprootTreeVisual";
 import Wallet, { RpcErrorCode } from "sats-connect";
 
+function hexToBytes(hex: string) {
+  return Uint8Array.from(
+    hex.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)) || [],
+  );
+}
+
 type Props = {
   wallet: WalletInfo;
   vault: VaultInfo;
@@ -173,6 +179,33 @@ export default function VaultDashboard({
         signedPsbtHex = bitcoin.Psbt.fromBase64(
           signResponse.result.psbt,
         ).toHex();
+      } else if (walletProvider === "phantom") {
+        const phantomBitcoin = (window as any).phantom?.bitcoin;
+        if (typeof window === "undefined" || !phantomBitcoin?.isPhantom) {
+          throw new Error(
+            "Phantom wallet not detected. Please install or unlock it.",
+          );
+        }
+
+        const signingAddress = wallet.signingAddress || wallet.paymentAddress;
+        if (!signingAddress) {
+          throw new Error("Phantom wallet did not provide a signing address");
+        }
+
+        const signedPsbtBytes = await phantomBitcoin.signPSBT(
+          hexToBytes(buildResult.psbtHex),
+          {
+          inputsToSign: Array.from(
+            { length: eligibleUtxosForExit.length },
+            (_, index) => ({
+              address: signingAddress,
+              signingIndexes: [index],
+            }),
+          ),
+          },
+        );
+
+        signedPsbtHex = Buffer.from(signedPsbtBytes).toString("hex");
       } else {
         const unisat = (window as any).unisat;
         if (typeof window === "undefined" || !unisat) {
@@ -274,8 +307,8 @@ export default function VaultDashboard({
               <h2 className="text-lg font-bold text-white">Taproot Vault Address</h2>
             </div>
 
-            <div className="bg-gray-800 rounded-lg p-4 mb-4">
-              <div className="flex items-start justify-between gap-3">
+            <div className="bg-gray-800 rounded-lg p-3 sm:p-4 mb-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <a
                   href={`${BTC_EXPLORER}/address/${vault.address}`}
                   target="_blank"
@@ -284,7 +317,7 @@ export default function VaultDashboard({
                 >
                   {vault.address}
                 </a>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <a
                     href={`${BTC_EXPLORER}/address/${vault.address}`}
                     target="_blank"
@@ -321,8 +354,10 @@ export default function VaultDashboard({
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Taproot Vault Timelock Status</h2>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h2 className="min-w-0 pr-2 text-lg font-bold leading-tight text-white">
+                Taproot Vault Timelock Status
+              </h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={refresh}
@@ -373,7 +408,7 @@ export default function VaultDashboard({
                     target="_blank"
                     rel="noopener noreferrer"
                     title="View block on explorer"
-                    className="block font-mono text-lg text-sky-400 hover:text-sky-300 hover:underline"
+                  className="block break-all font-mono text-lg text-sky-400 hover:text-sky-300 hover:underline"
                   >
                     {tipHeight.toLocaleString()}
                   </a>
@@ -412,7 +447,7 @@ export default function VaultDashboard({
                       key={`${entry.txid}:${entry.vout}`}
                       className="bg-gray-800 rounded-lg p-3"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-2">
+                      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-3 sm:gap-y-1">
                         <a
                           href={`${BTC_EXPLORER}/tx/${entry.txid}`}
                           target="_blank"
@@ -423,7 +458,7 @@ export default function VaultDashboard({
                           {entry.txid.slice(-8)}:{entry.vout}
                         </a>
                         <span
-                          className={`font-mono text-sm shrink-0 ${
+                          className={`font-mono text-sm sm:shrink-0 ${
                             entry.spent ? "text-gray-400 line-through" : "text-white"
                           }`}
                         >
@@ -492,17 +527,17 @@ export default function VaultDashboard({
                   </p>
                 </div>
 
-                <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+                  <div className="bg-gray-800 rounded-lg p-3 sm:p-4 space-y-3">
                   <div>
                     <span className="text-gray-500 text-xs uppercase">
                       Transaction ID
                     </span>
-                     <a
-                       href={`${BTC_EXPLORER}/tx/${exitResult.txid}`}
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       className="block text-blue-400 hover:text-blue-300 hover:underline font-mono text-sm break-all"
-                     >
+                      <a
+                        href={`${BTC_EXPLORER}/tx/${exitResult.txid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-blue-400 hover:text-blue-300 hover:underline font-mono text-xs sm:text-sm break-all"
+                      >
                        {exitResult.txid}
                      </a>
                   </div>
@@ -555,7 +590,7 @@ export default function VaultDashboard({
               </div>
             ) : (
               <>
-                <div className="bg-gray-800 rounded-lg p-4 mb-4">
+                 <div className="bg-gray-800 rounded-lg p-3 sm:p-4 mb-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <span className="text-gray-500 text-xs uppercase">
@@ -583,13 +618,13 @@ export default function VaultDashboard({
                   <label className="text-gray-400 text-sm mb-1 block">
                     Destination Address
                   </label>
-                  <input
-                    type="text"
-                    value={destinationAddress}
-                    onChange={(e) => setDestinationAddress(e.target.value)}
-                    placeholder={`Enter ${NETWORK_LABEL.toLowerCase()} Bitcoin address`}
-                    className="w-full bg-gray-800 text-white rounded-lg p-3 text-sm border border-gray-600 focus:border-orange-500 focus:outline-none font-mono"
-                  />
+                    <input
+                     type="text"
+                     value={destinationAddress}
+                     onChange={(e) => setDestinationAddress(e.target.value)}
+                     placeholder={`Enter ${NETWORK_LABEL.toLowerCase()} Bitcoin address`}
+                     className="w-full bg-gray-800 text-white rounded-lg p-3 text-xs sm:text-sm border border-gray-600 focus:border-orange-500 focus:outline-none font-mono"
+                   />
                 </div>
 
                 {exitError && (

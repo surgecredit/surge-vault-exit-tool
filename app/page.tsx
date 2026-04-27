@@ -116,7 +116,7 @@ export default function Home() {
         publicKeyHex?: string;
         paymentAddress?: string;
         signingAddress?: string;
-        walletProvider?: "unisat" | "xverse";
+        walletProvider?: "unisat" | "xverse" | "phantom";
         evmAddress?: string;
       };
 
@@ -302,7 +302,9 @@ export default function Home() {
             <VaultLoadingState />
           ) : hasStoredSession === false ? (
             <ImportWallet onWalletImported={handleWalletImported} />
-          ) : null
+          ) : (
+            <VaultLoadingState />
+          )
         ) : !wallet || !vault ? (
           <ImportWallet onWalletImported={handleWalletImported} />
         ) : (
