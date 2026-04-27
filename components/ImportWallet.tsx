@@ -1,8 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Wallet, {
+  AddressPurpose,
+  BitcoinNetworkType,
+  RpcErrorCode,
+  isProviderInstalled,
+} from "sats-connect";
 import { WalletInfo, walletFromPublicKey } from "@/lib/wallet";
 import { ACTIVE_NETWORK_CONFIG, APP_CONFIG } from "@/lib/config";
+
+const XVERSE_PROVIDER_ID = "XverseProviders.BitcoinProvider";
+
+function networkTypeForActive(): BitcoinNetworkType {
+  switch (ACTIVE_NETWORK_CONFIG.networkLabel) {
+    case "Mainnet":
+      return BitcoinNetworkType.Mainnet;
+    case "Signet":
+      return BitcoinNetworkType.Signet;
+    default:
+      return BitcoinNetworkType.Mainnet;
+  }
+}
+
+function hasXverseProvider() {
+  if (typeof window === "undefined") return false;
+  if (isProviderInstalled(XVERSE_PROVIDER_ID)) return true;
+  const w = window as any;
+  return Boolean(
+    w.XverseProviders?.BitcoinProvider ||
+      w.xverseProviders?.BitcoinProvider ||
+      w.BitcoinProvider,
+  );
+}
 
 type Props = {
   onWalletImported: (wallet: WalletInfo) => void;
@@ -42,49 +72,30 @@ async function connectUniSat(evmAddress: string) {
   });
 }
 
-function getXverseProvider() {
-  return (
-    (window as any).XverseProviders?.BitcoinProvider ||
-    (window as any).xverseProviders?.BitcoinProvider ||
-    (window as any).BitcoinProvider
-  );
-}
-
-function unwrapWalletResponse(response: any) {
-  if (response?.status === "error") {
-    throw new Error(response.error?.message || "Wallet request failed");
-  }
-  return response?.status === "success" ? response.result : response;
-}
-
 async function connectXverse(evmAddress: string) {
-  const provider = getXverseProvider();
+  const response = await Wallet.request("wallet_connect", {
+    addresses: [AddressPurpose.Ordinals, AddressPurpose.Payment],
+    network: networkTypeForActive(),
+    message: "Connect to the Surge Unilateral Exit Tool",
+  });
 
-  if (typeof window === "undefined" || !provider) {
-    window.open("https://www.xverse.app", "_blank");
-    throw new Error(
-      "Xverse wallet not detected. Please install the extension.",
-    );
+  if (response.status === "error") {
+    if (response.error?.code === RpcErrorCode.USER_REJECTION) {
+      throw new Error("Connection rejected in Xverse");
+    }
+    throw new Error(response.error?.message || "Xverse connection failed");
   }
 
-  const connectResult = unwrapWalletResponse(
-    await provider.request("wallet_connect", {
-      addresses: ["ordinals", "payment"],
-      network: ACTIVE_NETWORK_CONFIG.networkLabel,
-      message: "Connect to the Surge Unilateral Exit Tool",
-    }),
-  );
-
-  const addresses = connectResult?.addresses || connectResult?.addressses;
+  const addresses = response.result.addresses;
   if (!Array.isArray(addresses) || addresses.length === 0) {
     throw new Error("No Xverse account available");
   }
 
   const ordinalsAccount = addresses.find(
-    (item: any) => item?.purpose === "ordinals",
+    (a) => a.purpose === AddressPurpose.Ordinals,
   );
   const paymentAccount = addresses.find(
-    (item: any) => item?.purpose === "payment",
+    (a) => a.purpose === AddressPurpose.Payment,
   );
 
   if (!ordinalsAccount?.publicKey) {
@@ -120,7 +131,7 @@ async function connectWallet(
     return connectUniSat(evmAddress);
   }
 
-  if (getXverseProvider()) {
+  if (hasXverseProvider()) {
     return connectXverse(evmAddress);
   }
 
@@ -141,7 +152,7 @@ export default function ImportWallet({ onWalletImported }: Props) {
     const detect = () => {
       if ((window as any).unisat) {
         setDetectedProvider("unisat");
-      } else if (getXverseProvider()) {
+      } else if (hasXverseProvider()) {
         setDetectedProvider("xverse");
       } else {
         setDetectedProvider(null);

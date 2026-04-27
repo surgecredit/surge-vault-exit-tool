@@ -21,21 +21,7 @@ import {
   getVaultHistory,
 } from "@/lib/vault-history";
 import TaprootTreeVisual from "./TaprootTreeVisual";
-
-function getXverseProvider() {
-  return (
-    (window as any).XverseProviders?.BitcoinProvider ||
-    (window as any).xverseProviders?.BitcoinProvider ||
-    (window as any).BitcoinProvider
-  );
-}
-
-function unwrapWalletResponse(response: any) {
-  if (response?.status === "error") {
-    throw new Error(response.error?.message || "Wallet request failed");
-  }
-  return response?.status === "success" ? response.result : response;
-}
+import Wallet, { RpcErrorCode } from "sats-connect";
 
 type Props = {
   wallet: WalletInfo;
@@ -157,32 +143,36 @@ export default function VaultDashboard({
       let signedPsbtHex: string;
 
       if (walletProvider === "xverse") {
-        const xverseProvider = getXverseProvider();
-        if (typeof window === "undefined" || !xverseProvider) {
+        const xverseSigningAddress =
+          wallet.signingAddress || wallet.taprootAddress;
+
+        const signResponse = await Wallet.request("signPsbt", {
+          psbt: bitcoin.Psbt.fromHex(buildResult.psbtHex).toBase64(),
+          signInputs: {
+            [xverseSigningAddress]: Array.from(
+              { length: eligibleUtxosForExit.length },
+              (_, index) => index,
+            ),
+          },
+          broadcast: false,
+        });
+
+        if (signResponse.status === "error") {
+          if (signResponse.error?.code === RpcErrorCode.USER_REJECTION) {
+            throw new Error("Signing rejected in Xverse");
+          }
           throw new Error(
-            "Xverse wallet not detected. Please install or unlock it.",
+            signResponse.error?.message || "Xverse signing failed",
           );
         }
 
-        const xverseSigningAddress = wallet.signingAddress || wallet.taprootAddress;
-        const signResult = unwrapWalletResponse(
-          await xverseProvider.request("signPsbt", {
-            psbt: bitcoin.Psbt.fromHex(buildResult.psbtHex).toBase64(),
-            signInputs: {
-              [xverseSigningAddress]: Array.from(
-                { length: eligibleUtxosForExit.length },
-                (_, index) => index,
-              ),
-            },
-            broadcast: false,
-          }),
-        );
-
-        if (!signResult?.psbt) {
+        if (!signResponse.result?.psbt) {
           throw new Error("Xverse did not return a signed PSBT");
         }
 
-        signedPsbtHex = bitcoin.Psbt.fromBase64(signResult.psbt).toHex();
+        signedPsbtHex = bitcoin.Psbt.fromBase64(
+          signResponse.result.psbt,
+        ).toHex();
       } else {
         const unisat = (window as any).unisat;
         if (typeof window === "undefined" || !unisat) {
