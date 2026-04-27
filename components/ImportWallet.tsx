@@ -46,7 +46,7 @@ const PROVIDER_LABELS: Record<WalletProvider, string> = {
   phantom: "Phantom",
 };
 const PROVIDER_INSTALL_URLS: Record<WalletProvider, string> = {
-  unisat: "https://unisat.io",
+  unisat: "https://unisat.io/download",
   xverse: "https://www.xverse.app",
   phantom: "https://phantom.com",
 };
@@ -59,14 +59,16 @@ const PHANTOM_BITCOIN_SUPPORTED = ACTIVE_NETWORK_CONFIG.networkLabel === "Mainne
 
 function WalletIcon({ provider }: { provider: WalletProvider }) {
   return (
-    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-gray-700 bg-gray-950 p-1">
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-700 bg-gray-900 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-black/40 p-1">
       <Image
         src={PROVIDER_ICONS[provider]}
         alt={`${PROVIDER_LABELS[provider]} logo`}
-        fill
-        sizes="48px"
-        className="object-contain p-1"
+        width={32}
+        height={32}
+        className="h-7 w-7 object-contain"
       />
+      </div>
     </div>
   );
 }
@@ -99,7 +101,7 @@ async function connectUniSat(evmAddress: string) {
   const unisat = (window as any).unisat;
 
   if (typeof window === "undefined" || !unisat) {
-    window.open("https://unisat.io", "_blank");
+    window.open(PROVIDER_INSTALL_URLS.unisat, "_blank");
     throw new Error(
       "UniSat wallet not detected. Please install the extension.",
     );
@@ -247,7 +249,7 @@ async function connectWallet(
     return connectPhantom(evmAddress);
   }
 
-  window.open("https://unisat.io", "_blank");
+  window.open(PROVIDER_INSTALL_URLS.unisat, "_blank");
   throw new Error(
     "No supported wallet detected. Install UniSat, Xverse, or Phantom extension.",
   );
@@ -379,10 +381,32 @@ export default function ImportWallet({ onWalletImported }: Props) {
       return;
     }
 
+    if (visibleProviders.length === 1) {
+      const [provider] = visibleProviders;
+      setSelectedProvider(provider);
+      void handleConnect(provider);
+      return;
+    }
+
+    if (visibleProviders.length === 0) {
+      setSelectedProvider("unisat");
+      void handleConnect("unisat");
+      return;
+    }
+
     setWalletModalOpen(true);
   };
 
   const buttonLabel = loading ? "Connecting..." : "Connect Bitcoin Wallet";
+  const visibleProviders = (["unisat", "xverse", "phantom"] as WalletProvider[]).filter(
+    (provider) => {
+      if (provider === "phantom") {
+        return PHANTOM_BITCOIN_SUPPORTED && availableProviders[provider];
+      }
+
+      return availableProviders[provider];
+    },
+  );
 
   return (
     <div className="max-w-lg mx-auto">
@@ -464,65 +488,39 @@ export default function ImportWallet({ onWalletImported }: Props) {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {(["unisat", "xverse", "phantom"] as WalletProvider[]).map((provider) => {
-                const isAvailable = availableProviders[provider];
-                const isDisabled =
-                  provider === "phantom" && !PHANTOM_BITCOIN_SUPPORTED;
+            <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {visibleProviders.map((provider) => {
 
                 return (
                   <button
                     key={provider}
                     type="button"
                     onClick={async () => {
-                      if (isDisabled || loading) return;
+                      if (loading) return;
                       setSelectedProvider(provider);
                       setWalletModalOpen(false);
                       await handleConnect(provider);
                     }}
-                    disabled={isDisabled}
                     className={[
-                      "rounded-xl border p-3.5 sm:p-4 text-left transition",
-                      isDisabled
-                        ? "cursor-not-allowed border-gray-800 bg-gray-900/60 opacity-60"
-                        : "border-gray-700 bg-gray-800 hover:border-gray-600",
+                      "w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-left transition hover:border-gray-600",
                     ].join(" ")}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <WalletIcon provider={provider} />
-                        <span className="font-medium text-white">
-                          {PROVIDER_LABELS[provider]}
-                        </span>
-                      </div>
-                      <span
-                        className={[
-                          "max-w-[88px] shrink-0 text-right text-[10px] uppercase leading-4 tracking-[0.18em]",
-                          isDisabled
-                            ? "text-gray-500"
-                            : isAvailable
-                              ? "text-green-400"
-                              : "text-gray-500",
-                        ].join(" ")}
-                      >
-                        {isDisabled
-                          ? "Mainnet only"
-                          : isAvailable
-                            ? "Detected"
-                            : "Not detected"}
+                    <div className="flex items-center gap-2.5">
+                      <WalletIcon provider={provider} />
+                      <span className="text-sm font-medium text-white sm:text-base">
+                        {PROVIDER_LABELS[provider]}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm leading-5 sm:leading-6 text-gray-400">
-                      {provider === "unisat"
-                        ? "Best for direct extension-based signing."
-                        : provider === "xverse"
-                          ? "Connect through sats-connect with Xverse extension."
-                          : "Bitcoin support through Phantom extension on Mainnet only."}
-                    </p>
                   </button>
                 );
               })}
             </div>
+
+            {visibleProviders.length === 0 && (
+              <div className="mt-5 rounded-xl border border-gray-800 bg-gray-900/60 p-4 text-sm text-gray-400">
+                No supported Bitcoin wallet is currently detected. Install UniSat or Xverse to continue.
+              </div>
+            )}
           </div>
         </div>
       )}

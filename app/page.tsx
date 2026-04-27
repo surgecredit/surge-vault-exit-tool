@@ -302,7 +302,9 @@ export default function Home() {
             <VaultLoadingState />
           ) : hasStoredSession === false ? (
             <ImportWallet onWalletImported={handleWalletImported} />
-          ) : null
+          ) : (
+            <VaultLoadingState />
+          )
         ) : !wallet || !vault ? (
           <ImportWallet onWalletImported={handleWalletImported} />
         ) : (
