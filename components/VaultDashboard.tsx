@@ -173,6 +173,29 @@ export default function VaultDashboard({
         signedPsbtHex = bitcoin.Psbt.fromBase64(
           signResponse.result.psbt,
         ).toHex();
+      } else if (walletProvider === "phantom") {
+        const phantomBitcoin = (window as any).phantom?.bitcoin;
+        if (typeof window === "undefined" || !phantomBitcoin?.isPhantom) {
+          throw new Error(
+            "Phantom wallet not detected. Please install or unlock it.",
+          );
+        }
+
+        const signingAddress = wallet.signingAddress || wallet.paymentAddress;
+        if (!signingAddress) {
+          throw new Error("Phantom wallet did not provide a signing address");
+        }
+
+        signedPsbtHex = await phantomBitcoin.signPSBT(buildResult.psbtHex, {
+          inputsToSign: Array.from(
+            { length: eligibleUtxosForExit.length },
+            (_, index) => ({
+              address: signingAddress,
+              signingIndexes: [index],
+              sigHash: 0x01,
+            }),
+          ),
+        });
       } else {
         const unisat = (window as any).unisat;
         if (typeof window === "undefined" || !unisat) {

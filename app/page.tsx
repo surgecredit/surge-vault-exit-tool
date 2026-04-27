@@ -116,7 +116,7 @@ export default function Home() {
         publicKeyHex?: string;
         paymentAddress?: string;
         signingAddress?: string;
-        walletProvider?: "unisat" | "xverse";
+        walletProvider?: "unisat" | "xverse" | "phantom";
         evmAddress?: string;
       };
 

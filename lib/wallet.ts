@@ -20,13 +20,13 @@ export type WalletInfo = {
   taprootAddress: string;
   paymentAddress?: string;
   signingAddress?: string;
-  walletProvider?: "unisat" | "xverse";
+  walletProvider?: "unisat" | "xverse" | "phantom";
   evmAddress: string;
 };
 
 type WalletFromPublicKeyOptions = {
   signingAddress?: string;
-  walletProvider?: "unisat" | "xverse";
+  walletProvider?: "unisat" | "xverse" | "phantom";
 };
 
 /**

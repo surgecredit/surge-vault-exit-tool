@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import Wallet, {
   AddressPurpose,
@@ -39,6 +40,60 @@ type Props = {
 };
 
 const FORM_STORAGE_KEY = "surge-vault-connect-form";
+const PROVIDER_LABELS: Record<WalletProvider, string> = {
+  unisat: "UniSat",
+  xverse: "Xverse",
+  phantom: "Phantom",
+};
+const PROVIDER_INSTALL_URLS: Record<WalletProvider, string> = {
+  unisat: "https://unisat.io",
+  xverse: "https://www.xverse.app",
+  phantom: "https://phantom.com",
+};
+const PROVIDER_ICONS: Record<WalletProvider, string> = {
+  unisat: "/assets/unisat.webp",
+  xverse: "/assets/xverse.webp",
+  phantom: "/assets/phantom.webp",
+};
+const PHANTOM_BITCOIN_SUPPORTED = ACTIVE_NETWORK_CONFIG.networkLabel === "Mainnet";
+
+function WalletIcon({ provider }: { provider: WalletProvider }) {
+  return (
+    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-gray-700 bg-gray-950 p-1">
+      <Image
+        src={PROVIDER_ICONS[provider]}
+        alt={`${PROVIDER_LABELS[provider]} logo`}
+        fill
+        sizes="48px"
+        className="object-contain p-1"
+      />
+    </div>
+  );
+}
+
+function getErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "string" && err) return err;
+  if (err && typeof err === "object") {
+    const message =
+      "message" in err && typeof err.message === "string"
+        ? err.message
+        : "error" in err && typeof err.error === "string"
+          ? err.error
+          : "code" in err && typeof err.code === "string"
+            ? err.code
+            : null;
+
+    if (message) return message;
+  }
+
+  return fallback;
+}
+
+function hasPhantomProvider() {
+  if (typeof window === "undefined") return false;
+  return Boolean((window as any).phantom?.bitcoin?.isPhantom);
+}
 
 async function connectUniSat(evmAddress: string) {
   const unisat = (window as any).unisat;
@@ -73,6 +128,13 @@ async function connectUniSat(evmAddress: string) {
 }
 
 async function connectXverse(evmAddress: string) {
+  if (!hasXverseProvider()) {
+    window.open(PROVIDER_INSTALL_URLS.xverse, "_blank");
+    throw new Error(
+      "Xverse wallet not detected. Please install the extension.",
+    );
+  }
+
   const response = await Wallet.request("wallet_connect", {
     addresses: [AddressPurpose.Ordinals, AddressPurpose.Payment],
     network: networkTypeForActive(),
@@ -113,7 +175,49 @@ async function connectXverse(evmAddress: string) {
   );
 }
 
-type WalletProvider = "unisat" | "xverse";
+async function connectPhantom(evmAddress: string) {
+  const phantomBitcoin = (window as any).phantom?.bitcoin;
+
+  if (typeof window === "undefined" || !phantomBitcoin?.isPhantom) {
+    window.open(PROVIDER_INSTALL_URLS.phantom, "_blank");
+    throw new Error(
+      "Phantom wallet not detected. Please install the extension.",
+    );
+  }
+
+  if (ACTIVE_NETWORK_CONFIG.networkLabel === "Signet") {
+    throw new Error(
+      "Phantom Bitcoin does not currently support Signet in this app. Use UniSat or Xverse on Signet, or switch the app to Mainnet for Phantom.",
+    );
+  }
+
+  const addresses = await phantomBitcoin.requestAccounts();
+  if (!Array.isArray(addresses) || addresses.length === 0) {
+    throw new Error("No Phantom account available");
+  }
+
+  const ordinalsAccount = addresses.find(
+    (a: any) => a.purpose === "ordinals",
+  );
+  const paymentAccount = addresses.find((a: any) => a.purpose === "payment");
+  const selectedAccount = ordinalsAccount || paymentAccount;
+
+  if (!selectedAccount?.publicKey) {
+    throw new Error("Failed to get Bitcoin public key from Phantom");
+  }
+
+  return walletFromPublicKey(
+    selectedAccount.publicKey,
+    evmAddress,
+    paymentAccount?.address || selectedAccount.address,
+    {
+      signingAddress: selectedAccount.address,
+      walletProvider: "phantom",
+    },
+  );
+}
+
+type WalletProvider = "unisat" | "xverse" | "phantom";
 
 async function connectWallet(
   evmAddress: string,
@@ -127,6 +231,10 @@ async function connectWallet(
     return connectXverse(evmAddress);
   }
 
+  if (preferredProvider === "phantom") {
+    return connectPhantom(evmAddress);
+  }
+
   if ((window as any).unisat) {
     return connectUniSat(evmAddress);
   }
@@ -135,9 +243,13 @@ async function connectWallet(
     return connectXverse(evmAddress);
   }
 
+  if (hasPhantomProvider()) {
+    return connectPhantom(evmAddress);
+  }
+
   window.open("https://unisat.io", "_blank");
   throw new Error(
-    "No supported wallet detected. Install UniSat or Xverse extension.",
+    "No supported wallet detected. Install UniSat, Xverse, or Phantom extension.",
   );
 }
 
@@ -145,18 +257,41 @@ export default function ImportWallet({ onWalletImported }: Props) {
   const [evmInput, setEvmInput] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [detectedProvider, setDetectedProvider] =
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const [availableProviders, setAvailableProviders] = useState<
+    Record<WalletProvider, boolean>
+  >({
+    unisat: false,
+    xverse: false,
+    phantom: false,
+  });
+  const [selectedProvider, setSelectedProvider] =
     useState<WalletProvider | null>(null);
 
   useEffect(() => {
     const detect = () => {
-      if ((window as any).unisat) {
-        setDetectedProvider("unisat");
-      } else if (hasXverseProvider()) {
-        setDetectedProvider("xverse");
-      } else {
-        setDetectedProvider(null);
-      }
+      const nextProviders = {
+        unisat: Boolean((window as any).unisat),
+        xverse: hasXverseProvider(),
+        phantom: PHANTOM_BITCOIN_SUPPORTED && hasPhantomProvider(),
+      };
+
+      setAvailableProviders((current) => {
+        if (
+          current.unisat === nextProviders.unisat &&
+          current.xverse === nextProviders.xverse &&
+          current.phantom === nextProviders.phantom
+        ) {
+          return current;
+        }
+
+        return nextProviders;
+      });
+
+      setSelectedProvider((current) => {
+        if (!current) return null;
+        return nextProviders[current] ? current : null;
+      });
     };
     detect();
     const interval = window.setInterval(detect, 1000);
@@ -180,18 +315,31 @@ export default function ImportWallet({ onWalletImported }: Props) {
     if (!saved) return;
 
     try {
-      const parsed = JSON.parse(saved) as { evmInput?: string };
+      const parsed = JSON.parse(saved) as {
+        evmInput?: string;
+        walletProvider?: WalletProvider;
+      };
       setEvmInput(parsed.evmInput || "");
+      if (
+        parsed.walletProvider === "unisat" ||
+        parsed.walletProvider === "xverse" ||
+        (parsed.walletProvider === "phantom" && PHANTOM_BITCOIN_SUPPORTED)
+      ) {
+        setSelectedProvider(parsed.walletProvider);
+      }
     } catch {
       window.localStorage.removeItem(FORM_STORAGE_KEY);
     }
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify({ evmInput }));
-  }, [evmInput]);
+    window.localStorage.setItem(
+      FORM_STORAGE_KEY,
+      JSON.stringify({ evmInput, walletProvider: selectedProvider }),
+    );
+  }, [evmInput, selectedProvider]);
 
-  const handleConnect = async () => {
+  const handleConnect = async (provider: WalletProvider) => {
     setError("");
     setLoading(true);
 
@@ -206,13 +354,32 @@ export default function ImportWallet({ onWalletImported }: Props) {
         );
       }
 
-      const wallet = await connectWallet(trimmed, detectedProvider ?? undefined);
+      const wallet = await connectWallet(trimmed, provider);
       onWalletImported(wallet);
     } catch (err: any) {
-      setError(err.message || "Failed to connect Bitcoin wallet");
+      setError(getErrorMessage(err, "Failed to connect Bitcoin wallet"));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenWalletModal = () => {
+    setError("");
+
+    const trimmed = evmInput.trim();
+    if (!trimmed) {
+      setError("Please enter your credit address");
+      return;
+    }
+
+    if (!/^0x[0-9a-fA-F]{40}$/.test(trimmed)) {
+      setError(
+        "Invalid credit address. Enter a valid EVM address (0x followed by 40 hex characters).",
+      );
+      return;
+    }
+
+    setWalletModalOpen(true);
   };
 
   const buttonLabel = loading ? "Connecting..." : "Connect Bitcoin Wallet";
@@ -249,7 +416,7 @@ export default function ImportWallet({ onWalletImported }: Props) {
         {error && <p className="text-red-400 text-sm">{error}</p>}
 
         <button
-          onClick={() => handleConnect()}
+          onClick={handleOpenWalletModal}
           disabled={loading}
           className="!mt-6 w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium py-3 rounded-lg transition"
         >
@@ -265,6 +432,88 @@ export default function ImportWallet({ onWalletImported }: Props) {
           </span>
         </p>
       </div>
+
+      {walletModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-2xl border border-gray-700 bg-gray-900 p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Choose Bitcoin Wallet</h3>
+                <p className="mt-1 text-sm text-gray-400">
+                  Pick the wallet you want to use for connection and signing.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWalletModalOpen(false)}
+                className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition hover:border-gray-600 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {(["unisat", "xverse", "phantom"] as WalletProvider[]).map((provider) => {
+                const isAvailable = availableProviders[provider];
+                const isDisabled =
+                  provider === "phantom" && !PHANTOM_BITCOIN_SUPPORTED;
+
+                return (
+                  <button
+                    key={provider}
+                    type="button"
+                    onClick={async () => {
+                      if (isDisabled || loading) return;
+                      setSelectedProvider(provider);
+                      setWalletModalOpen(false);
+                      await handleConnect(provider);
+                    }}
+                    disabled={isDisabled}
+                    className={[
+                      "rounded-xl border p-4 text-left transition",
+                      isDisabled
+                        ? "cursor-not-allowed border-gray-800 bg-gray-900/60 opacity-60"
+                        : "border-gray-700 bg-gray-800 hover:border-gray-600",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <WalletIcon provider={provider} />
+                        <span className="font-medium text-white">
+                          {PROVIDER_LABELS[provider]}
+                        </span>
+                      </div>
+                      <span
+                        className={[
+                          "max-w-[88px] shrink-0 text-right text-[10px] uppercase leading-4 tracking-[0.18em]",
+                          isDisabled
+                            ? "text-gray-500"
+                            : isAvailable
+                              ? "text-green-400"
+                              : "text-gray-500",
+                        ].join(" ")}
+                      >
+                        {isDisabled
+                          ? "Mainnet only"
+                          : isAvailable
+                            ? "Detected"
+                            : "Not detected"}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-gray-400">
+                      {provider === "unisat"
+                        ? "Best for direct extension-based signing."
+                        : provider === "xverse"
+                          ? "Connect through sats-connect with Xverse extension."
+                          : "Bitcoin support through Phantom extension on Mainnet only."}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
