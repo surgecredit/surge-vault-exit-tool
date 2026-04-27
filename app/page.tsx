@@ -324,9 +324,9 @@ export default function Home() {
       <footer className="border-t border-gray-800 mt-auto">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6">
           <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-3 sm:p-4">
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-2.5 sm:gap-3">
-                <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-300">
+            <div className="flex flex-col gap-2.5 text-center sm:text-left sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col items-center gap-2.5 sm:flex-row sm:items-start sm:gap-3">
+                <span className="inline-flex shrink-0 items-center rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-300">
                   Open Source
                 </span>
                 <p className="text-xs sm:text-sm text-gray-300 leading-5 sm:leading-6">
@@ -334,7 +334,8 @@ export default function Home() {
                   self-host your own instance for independent recovery.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+              <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:gap-2 sm:shrink-0">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
                 <a
                   href="https://github.com/surgecredit/surge-vault-exit-tool"
                   target="_blank"
@@ -363,7 +364,8 @@ export default function Home() {
                 >
                   Self-host guide
                 </a>
-                <span className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">
+                </div>
+                <span className="text-[10px] uppercase tracking-wider text-gray-500 font-mono sm:ml-1">
                   v{appVersion}
                 </span>
               </div>
