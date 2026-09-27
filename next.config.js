@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  poweredByHeader: false,
   // Set in next.config rather than vercel.json so self-hosted instances get them too.
   async headers() {
     return [
