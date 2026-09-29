@@ -1,4 +1,4 @@
-import { EsploraTx, getAddressTxs } from "./bitcoin";
+import { EsploraTx, getAllAddressTxs } from "./bitcoin";
 import { VaultInfo } from "./vault";
 
 export type SpendPath =
@@ -54,7 +54,7 @@ function detectSpendPath(witness: string[] | undefined, vault: VaultInfo): Spend
 export async function getVaultHistory(
   vault: VaultInfo,
 ): Promise<VaultHistoryEntry[]> {
-  const txs: EsploraTx[] = await getAddressTxs(vault.address);
+  const txs: EsploraTx[] = await getAllAddressTxs(vault.address);
   const entries = new Map<string, VaultHistoryEntry>();
 
   for (const tx of txs) {
