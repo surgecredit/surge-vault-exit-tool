@@ -6,6 +6,7 @@ import {
   pushTx,
   estimateExitTxVsize,
   getFeeRates,
+  getTipHeight,
 } from "./bitcoin";
 import { createExitScript } from "./scripts";
 import { VaultInfo } from "./vault";
@@ -72,6 +73,8 @@ export async function buildExitTransaction(
 
   // Transaction version must be >= 2 for CSV (OP_CHECKSEQUENCEVERIFY)
   psbt.setVersion(2);
+  // Lock to the current tip, as wallets do, so the exit can't be mined earlier.
+  psbt.setLocktime(await getTipHeight());
 
   // Use the vault's output script (no redeem — just the overall Taproot output)
   const vaultPayment = bitcoin.payments.p2tr({
