@@ -67,14 +67,20 @@ export default function VaultDashboard({
     setLoading(true);
     setError("");
     try {
-      const [fetchedHistory, fetchedUtxos, height] = await Promise.all([
-        getVaultHistory(vault),
-        getUtxos(vault.address),
-        getTipHeight(),
-      ]);
-      setHistory(fetchedHistory);
-      setUtxos(fetchedUtxos);
-      setTipHeight(height);
+      // Settled separately: the history list is display only, so a failed
+      // history page must not hide the balance or the exit inputs.
+      const [historyResult, utxosResult, heightResult] =
+        await Promise.allSettled([
+          getVaultHistory(vault),
+          getUtxos(vault.address),
+          getTipHeight(),
+        ]);
+      if (historyResult.status === "fulfilled") setHistory(historyResult.value);
+      if (utxosResult.status === "fulfilled") setUtxos(utxosResult.value);
+      if (heightResult.status === "fulfilled") setTipHeight(heightResult.value);
+      for (const r of [utxosResult, heightResult, historyResult]) {
+        if (r.status === "rejected") throw r.reason;
+      }
     } catch (err: any) {
       setError(err.message || "Failed to fetch vault data");
     } finally {

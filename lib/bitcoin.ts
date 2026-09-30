@@ -78,8 +78,11 @@ export async function getAddressTxs(address: string): Promise<EsploraTx[]> {
 export async function getAllAddressTxs(address: string): Promise<EsploraTx[]> {
   const txs = await getAddressTxs(address);
   let page = txs.filter((tx) => tx.status.confirmed);
+  const seen = new Set<string>();
   while (page.length > 0) {
     const lastSeen = page[page.length - 1].txid;
+    if (seen.has(lastSeen)) break;
+    seen.add(lastSeen);
     const res = await fetch(
       `${BTC_ESPLORA_API}/address/${address}/txs/chain/${lastSeen}`,
     );
