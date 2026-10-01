@@ -71,6 +71,29 @@ export async function getAddressTxs(address: string): Promise<EsploraTx[]> {
 }
 
 /**
+ * Fetch the full transaction history for an address. Esplora returns the
+ * newest confirmed transactions one page at a time, so follow /txs/chain
+ * until it comes back empty.
+ */
+export async function getAllAddressTxs(address: string): Promise<EsploraTx[]> {
+  const txs = await getAddressTxs(address);
+  let page = txs.filter((tx) => tx.status.confirmed);
+  const seen = new Set<string>();
+  while (page.length > 0) {
+    const lastSeen = page[page.length - 1].txid;
+    if (seen.has(lastSeen)) break;
+    seen.add(lastSeen);
+    const res = await fetch(
+      `${BTC_ESPLORA_API}/address/${address}/txs/chain/${lastSeen}`,
+    );
+    if (!res.ok) throw new Error(`Failed to fetch txs: ${res.statusText}`);
+    page = await res.json();
+    txs.push(...page);
+  }
+  return txs;
+}
+
+/**
  * Get the current tip block height.
  */
 export async function getTipHeight(): Promise<number> {

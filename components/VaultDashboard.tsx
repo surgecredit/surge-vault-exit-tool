@@ -5,6 +5,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import {
   BTC_EXPLORER,
   getTipHeight,
+  getUtxos,
   NETWORK_LABEL,
   Utxo,
 } from "@/lib/bitcoin";
@@ -43,6 +44,7 @@ export default function VaultDashboard({
   onInitialLoadComplete,
 }: Props) {
   const [history, setHistory] = useState<VaultHistoryEntry[]>([]);
+  const [utxos, setUtxos] = useState<Utxo[]>([]);
   const [tipHeight, setTipHeight] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -65,12 +67,20 @@ export default function VaultDashboard({
     setLoading(true);
     setError("");
     try {
-      const [fetchedHistory, height] = await Promise.all([
-        getVaultHistory(vault),
-        getTipHeight(),
-      ]);
-      setHistory(fetchedHistory);
-      setTipHeight(height);
+      // Settled separately: the history list is display only, so a failed
+      // history page must not hide the balance or the exit inputs.
+      const [historyResult, utxosResult, heightResult] =
+        await Promise.allSettled([
+          getVaultHistory(vault),
+          getUtxos(vault.address),
+          getTipHeight(),
+        ]);
+      if (historyResult.status === "fulfilled") setHistory(historyResult.value);
+      if (utxosResult.status === "fulfilled") setUtxos(utxosResult.value);
+      if (heightResult.status === "fulfilled") setTipHeight(heightResult.value);
+      for (const r of [utxosResult, heightResult, historyResult]) {
+        if (r.status === "rejected") throw r.reason;
+      }
     } catch (err: any) {
       setError(err.message || "Failed to fetch vault data");
     } finally {
@@ -101,29 +111,21 @@ export default function VaultDashboard({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const unspentEntries = history.filter((e) => !e.spent);
-  const totalBalance = unspentEntries.reduce((sum, e) => sum + e.value, 0);
-  const eligibleEntries = unspentEntries.filter(
-    (e) =>
-      e.receivedBlockHeight !== undefined &&
-      tipHeight - e.receivedBlockHeight >= timelockBlocks,
+  // Balance and exit inputs come from the vault's unspent outputs, not from
+  // the transaction history, so they don't depend on how much history exists.
+  const totalBalance = utxos.reduce((sum, u) => sum + u.value, 0);
+  const eligibleUtxosForExit = utxos.filter(
+    (u) =>
+      u.status.confirmed &&
+      tipHeight - u.status.block_height >= timelockBlocks,
   );
-  const eligibleBalance = eligibleEntries.reduce((sum, e) => sum + e.value, 0);
-  const hasEligibleUtxos = eligibleEntries.length > 0;
-  const hasAnyUtxos = history.length > 0;
+  const eligibleBalance = eligibleUtxosForExit.reduce(
+    (sum, u) => sum + u.value,
+    0,
+  );
+  const hasEligibleUtxos = eligibleUtxosForExit.length > 0;
+  const hasAnyUtxos = history.length > 0 || utxos.length > 0;
   const shortVaultAddress = `${vault.address.slice(0, 10)}...${vault.address.slice(-10)}`;
-
-  const eligibleUtxosForExit: Utxo[] = eligibleEntries.map((e) => ({
-    txid: e.txid,
-    vout: e.vout,
-    value: e.value,
-    status: {
-      confirmed: e.receivedBlockHeight !== undefined,
-      block_height: e.receivedBlockHeight ?? 0,
-      block_hash: "",
-      block_time: e.receivedBlockTime ?? 0,
-    },
-  }));
 
   const formatBtc = (sats: number) => {
     return (sats / 100_000_000).toFixed(8).replace(/\.0+$|0+$/g, "");
@@ -418,7 +420,7 @@ export default function VaultDashboard({
                     Exit Eligible UTXOs
                   </span>
                   <p className="text-white font-mono text-lg">
-                    {eligibleEntries.length} / {unspentEntries.length}
+                    {eligibleUtxosForExit.length} / {utxos.length}
                   </p>
                   <p className="text-gray-500 text-xs">
                     Timelock: {timelockBlocks.toLocaleString()} blocks
@@ -578,7 +580,7 @@ export default function VaultDashboard({
                   Done
                 </button>
               </div>
-            ) : eligibleEntries.length === 0 ? (
+            ) : eligibleUtxosForExit.length === 0 ? (
               <div className="bg-gray-800 rounded-lg p-6 text-center">
                 <p className="text-gray-500">
                   No UTXOs are currently eligible for recovery.
@@ -597,7 +599,7 @@ export default function VaultDashboard({
                         Exit Eligible UTXOs
                       </span>
                       <p className="text-white font-mono">
-                        {eligibleEntries.length}
+                        {eligibleUtxosForExit.length}
                       </p>
                     </div>
                     <div>

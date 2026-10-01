@@ -6,6 +6,7 @@ import {
   pushTx,
   estimateExitTxVsize,
   getFeeRates,
+  getTipHeight,
 } from "./bitcoin";
 import { createExitScript } from "./scripts";
 import { VaultInfo } from "./vault";
@@ -72,6 +73,9 @@ export async function buildExitTransaction(
 
   // Transaction version must be >= 2 for CSV (OP_CHECKSEQUENCEVERIFY)
   psbt.setVersion(2);
+  // Lock one block behind the tip, so a node that is a block behind still
+  // accepts it.
+  psbt.setLocktime(Math.max(0, (await getTipHeight()) - 1));
 
   // Use the vault's output script (no redeem — just the overall Taproot output)
   const vaultPayment = bitcoin.payments.p2tr({
