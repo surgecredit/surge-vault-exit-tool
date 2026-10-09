@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Buffer } from "buffer";
 import ImportWallet from "@/components/ImportWallet";
 import VaultDashboard from "@/components/VaultDashboard";
+import QuorumExit from "@/components/QuorumExit";
 import { WalletInfo, walletFromPublicKey } from "@/lib/wallet";
 import { VaultInfo, generateVault } from "@/lib/vault";
 import { BTC_EXPLORER } from "@/lib/bitcoin";
@@ -99,6 +100,7 @@ export default function Home() {
   const [hasStoredSession, setHasStoredSession] = useState<boolean | null>(null);
   const [vaultReady, setVaultReady] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [vaultType, setVaultType] = useState<"single" | "quorum">("single");
 
   useEffect(() => {
     let cancelled = false;
@@ -297,7 +299,29 @@ export default function Home() {
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-8 flex-1 w-full">
-        {!hydrated ? (
+        {!wallet && (
+          <div className="mb-6 inline-flex rounded-lg bg-gray-900 p-1 text-sm">
+            {(
+              [
+                ["single", "Single-key vault"],
+                ["quorum", "Multisig vault"],
+              ] as const
+            ).map(([type, label]) => (
+              <button
+                key={type}
+                onClick={() => setVaultType(type)}
+                className={`rounded-md px-3 py-1.5 transition ${
+                  vaultType === type ? "bg-orange-600 text-white" : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {!wallet && vaultType === "quorum" ? (
+          <QuorumExit />
+        ) : !hydrated ? (
           hasStoredSession ? (
             <VaultLoadingState />
           ) : hasStoredSession === false ? (

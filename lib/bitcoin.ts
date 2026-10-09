@@ -70,6 +70,23 @@ export async function getAddressTxs(address: string): Promise<EsploraTx[]> {
   return res.json();
 }
 
+export type AddressActivity = { txCount: number; balance: number };
+
+/** Whether an address has ever been used, and what it holds now (confirmed + mempool). */
+export async function getAddressActivity(address: string): Promise<AddressActivity> {
+  const res = await fetch(`${BTC_ESPLORA_API}/address/${address}`);
+  if (!res.ok) throw new Error(`Failed to look up ${address}: ${res.statusText}`);
+  const data = await res.json();
+  const chain = data.chain_stats ?? {};
+  const pool = data.mempool_stats ?? {};
+  return {
+    txCount: (chain.tx_count ?? 0) + (pool.tx_count ?? 0),
+    balance:
+      (chain.funded_txo_sum ?? 0) - (chain.spent_txo_sum ?? 0) +
+      (pool.funded_txo_sum ?? 0) - (pool.spent_txo_sum ?? 0),
+  };
+}
+
 /**
  * Get the current tip block height.
  */

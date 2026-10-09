@@ -8,13 +8,16 @@
     "start": "next start"
   },
   "dependencies": {
+    "@bitboxswiss/bitbox-api": "^0.3.0",
     "@bitcoinerlab/secp256k1": "^1.1.1",
+    "@ledgerhq/hw-transport-webhid": "^6.36.0",
     "@scure/bip32": "^1.6.2",
     "@scure/bip39": "^1.5.4",
     "bitcoinjs-lib": "^6.1.7",
     "buffer": "^6.0.3",
     "ecpair": "^2.1.0",
     "ethers": "^6.15.0",
+    "ledger-bitcoin": "^0.2.3",
     "next": "^15.5.18",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
