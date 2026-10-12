@@ -74,9 +74,18 @@ function matchDeviceKey(vault: QuorumVault, fingerprint: string, deviceXpub: str
 }
 
 /** Paths to try on a device: those in the backup first, then the standard account. */
+/**
+ * Accounts tried when the vault does not record a key's path. A wallet can hold
+ * several accounts on one seed (BitBoxApp and Ledger Live both add them), and
+ * the vault may use any of them, not only the first.
+ */
+const ACCOUNTS_TO_TRY = 5;
+
 function candidatePaths(vault: QuorumVault, fingerprint: string): string[] {
   const own = vault.keys.filter((k) => k.fingerprint?.toLowerCase() === fingerprint.toLowerCase() && k.path);
-  const all = [...own.map((k) => k.path!), ...vault.keys.map((k) => k.path).filter((p): p is string => !!p), DEFAULT_ACCOUNT_PATH];
+  const purposeCoin = DEFAULT_ACCOUNT_PATH.split("/").slice(0, 2).join("/");
+  const accounts = Array.from({ length: ACCOUNTS_TO_TRY }, (_, i) => `${purposeCoin}/${i}'`);
+  const all = [...own.map((k) => k.path!), ...vault.keys.map((k) => k.path).filter((p): p is string => !!p), ...accounts];
   return [...new Set(all)];
 }
 
@@ -405,10 +414,12 @@ async function identify(
     const match = matchDeviceKey(vault, fingerprint, await readXpub(path), path);
     if (match) return { slot: match.slot, fingerprint, path };
   }
-  const needed = vault.keys.map((k) => k.fingerprint).filter(Boolean).join(", ");
+  const known = vault.keys.map((k) => k.fingerprint).filter((f) => f && f !== "00000000");
+  const tried = candidatePaths(vault, fingerprint).map((p) => `m/${p}`).join(", ");
   throw new Error(
-    `Wrong key: this ${what} (fingerprint ${fingerprint}) is not one of this vault's keys, which are ${needed}. ` +
-      `If it is the right ${what === "seed" ? "seed" : "device"}, check its passphrase.`,
+    `Wrong key: this ${what} (fingerprint ${fingerprint}) holds none of this vault's keys at ${tried}` +
+      (known.length ? `; the vault's keys are ${known.join(", ")}` : "") +
+      `. If it is the right ${what === "seed" ? "seed" : "device"}, check its passphrase.`,
   );
 }
 

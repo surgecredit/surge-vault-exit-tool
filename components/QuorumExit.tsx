@@ -115,6 +115,48 @@ export default function QuorumExit() {
     setSignError("");
   };
 
+  // The timelock is part of the vault's scripts, so a different value is a
+  // different vault address. Rebuild what is on screen whenever it changes,
+  // keeping the open vault (and its connected keys, which do not change) open.
+  useEffect(() => {
+    if (IS_MAINNET || chainVaults === null || !evmInput.trim()) return;
+    const blocks = Number(timelock);
+    if (!Number.isInteger(blocks) || blocks < 1) return;
+    if (vault ? vault.timelockBlocks === blocks : chainVaults.every((v) => v.vault.timelockBlocks === blocks)) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setChainError("");
+      setChainBusy(true);
+      try {
+        const found = await loadVaultsFromBase(evmInput, { timelockBlocks: blocks });
+        if (cancelled) return;
+        setChainVaults(found);
+        if (vault) {
+          const same = found.find((f) => f.nftId === nftId);
+          if (same) {
+            setVault(same.vault);
+            setPsbt(null);
+            setBuilt(null);
+            setTxid("");
+            setSignMessage("");
+            setSignError("");
+          } else {
+            closeVault();
+          }
+        }
+      } catch (err: any) {
+        if (!cancelled) setChainError(err?.message || "Could not read the vault keys from Base");
+      } finally {
+        if (!cancelled) setChainBusy(false);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timelock]);
+
   const closeVault = () => {
     setVault(null);
     setNftId(null);
@@ -344,6 +386,13 @@ export default function QuorumExit() {
         >
           {vault.address}
         </a>
+        {!IS_MAINNET && (
+          <label className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+            <span>Exit timelock in blocks ({QUORUM_EXIT_CSV_BLOCKS} for a real vault; 1 for a test vault)</span>
+            <input value={timelock} onChange={(e) => setTimelock(e.target.value)} className={`w-32 ${cardInput}`} />
+            {chainBusy && <span>Rebuilding...</span>}
+          </label>
+        )}
       </div>
 
       {/* Connect keys */}
@@ -399,15 +448,8 @@ export default function QuorumExit() {
               spellCheck={false}
               className={`w-full font-mono text-xs ${input}`}
             />
+            <PassphraseField value={connectPass} onChange={setConnectPass} inputClass={input} />
             <div className="flex flex-wrap gap-2">
-              <input
-                type="password"
-                value={connectPass}
-                onChange={(e) => setConnectPass(e.target.value)}
-                placeholder="Passphrase (leave empty if none)"
-                autoComplete="off"
-                className={`min-w-0 flex-1 ${input}`}
-              />
               <button onClick={() => connectKey("words")} disabled={!connectWords.trim() || !!connectBusy} className={secondary}>
                 Check recovery words
               </button>
@@ -555,15 +597,8 @@ export default function QuorumExit() {
                         spellCheck={false}
                         className={`w-full font-mono text-xs ${input}`}
                       />
+                      <PassphraseField value={signPass} onChange={setSignPass} inputClass={input} />
                       <div className="flex flex-wrap gap-2">
-                        <input
-                          type="password"
-                          value={signPass}
-                          onChange={(e) => setSignPass(e.target.value)}
-                          placeholder="Passphrase (leave empty if none)"
-                          autoComplete="off"
-                          className={`min-w-0 flex-1 ${input}`}
-                        />
                         <button onClick={() => signWithWords(slot)} disabled={!signWords.trim()} className={primary}>
                           Sign with recovery words
                         </button>
@@ -601,6 +636,55 @@ export default function QuorumExit() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * BIP-39 passphrase, hidden by default. Surge never sets one (the enclave key
+ * has none); it only exists for a hardware wallet whose owner turned one on in
+ * the device's own settings, and is needed when recovering that device's words.
+ */
+function PassphraseField({
+  value,
+  onChange,
+  inputClass,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  inputClass: string;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!open && !value) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="text-xs text-gray-400 underline hover:text-gray-200">
+        My device used a passphrase
+      </button>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <input
+        type="password"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Passphrase set on the hardware wallet"
+        autoComplete="off"
+        className={`w-full ${inputClass}`}
+      />
+      <p className="text-xs text-gray-500">
+        Only for a hardware wallet with a passphrase turned on in its own settings. Leave empty for the Surge enclave key.{" "}
+        <button
+          type="button"
+          onClick={() => {
+            onChange("");
+            setOpen(false);
+          }}
+          className="underline hover:text-gray-300"
+        >
+          No passphrase
+        </button>
+      </p>
     </div>
   );
 }
