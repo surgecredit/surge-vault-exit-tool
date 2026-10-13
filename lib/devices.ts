@@ -89,6 +89,46 @@ function candidatePaths(vault: QuorumVault, fingerprint: string): string[] {
   return [...new Set(all)];
 }
 
+/**
+ * Find which of the vault's keys a device or seed holds, trying each candidate
+ * path. Stored paths come from the registry, where anyone can write them, so a
+ * path the device refuses (malformed, or one it will not export) is skipped
+ * rather than failing the connect. Only when every read fails is that error
+ * surfaced, since then the device itself is the problem.
+ */
+async function findDeviceKey(
+  vault: QuorumVault,
+  fingerprint: string,
+  readXpub: (path: string) => Promise<string>,
+): Promise<{ match: NonNullable<ReturnType<typeof matchDeviceKey>>; path: string } | null> {
+  let firstError: unknown = null;
+  let anyRead = false;
+  for (const path of candidatePaths(vault, fingerprint)) {
+    let xpub: string;
+    try {
+      xpub = await readXpub(path);
+      anyRead = true;
+    } catch (err) {
+      firstError ??= err;
+      continue;
+    }
+    const match = matchDeviceKey(vault, fingerprint, xpub, path);
+    if (match) return { match, path };
+  }
+  if (!anyRead && firstError) throw firstError;
+  return null;
+}
+
+/**
+ * The policy's user keys as sent to a device. Only the key this device holds
+ * carries an origin, the one read from the device itself. The others go as
+ * bare xpubs: their stored fingerprint and path are unverified registry data,
+ * and a wrong one could make the device refuse the policy or show it.
+ */
+function policyUserKeys(match: NonNullable<ReturnType<typeof matchDeviceKey>>) {
+  return match.keys.map((k, i) => (i === match.slot ? k : { ...k, fingerprint: undefined, path: undefined }));
+}
+
 /** Make sure the PSBT tells the device which of its keys signs, and on which leaf. */
 function addOwnDerivation(vault: QuorumVault, psbt: bitcoin.Psbt, slot: number, fingerprint: string, path: string) {
   const pubkey = vault.userExitKeys[slot];
@@ -154,23 +194,15 @@ export async function signWithLedger(vault: QuorumVault, psbt: bitcoin.Psbt): Pr
     const app = new AppClient(transport as any);
     const fingerprint = (await app.getMasterFingerprint()).toLowerCase();
 
-    let match: ReturnType<typeof matchDeviceKey> = null;
-    let path = "";
-    for (const p of candidatePaths(vault, fingerprint)) {
-      const xpub = await app.getExtendedPubkey(`m/${p}`, false);
-      match = matchDeviceKey(vault, fingerprint, xpub, p);
-      if (match) {
-        path = p;
-        break;
-      }
-    }
-    if (!match) {
+    const found = await findDeviceKey(vault, fingerprint, (p) => app.getExtendedPubkey(`m/${p}`, false));
+    if (!found) {
       throw new Error(`This Ledger (${fingerprint}) holds none of this vault's keys. Connect another device, or check its passphrase.`);
     }
+    const { match, path } = found;
 
     const keys = [
       originless(vault, "nums"),
-      ...match.keys.map((k) => (k.fingerprint && k.path ? `[${k.fingerprint}/${k.path}]${forNetwork(k.xpub)}` : forNetwork(k.xpub))),
+      ...policyUserKeys(match).map((k) => (k.fingerprint && k.path ? `[${k.fingerprint}/${k.path}]${forNetwork(k.xpub)}` : forNetwork(k.xpub))),
       originless(vault, "loan"),
     ];
     const policy = new WalletPolicy(POLICY_NAME, policyDescriptor(vault.keys.length, vault.threshold, vault.timelockBlocks), keys);
@@ -228,26 +260,20 @@ export async function signWithBitBox(
     const coin = IS_MAINNET ? ("btc" as const) : ("tbtc" as const);
     const fingerprint = (await device.rootFingerprint()).toLowerCase();
 
-    let match: ReturnType<typeof matchDeviceKey> = null;
-    let path = "";
-    for (const p of candidatePaths(vault, fingerprint)) {
-      const xpub = await device.btcXpub(coin, `m/${p}`, IS_MAINNET ? "xpub" : "tpub", false);
-      match = matchDeviceKey(vault, fingerprint, xpub, p);
-      if (match) {
-        path = p;
-        break;
-      }
-    }
-    if (!match) {
+    const found = await findDeviceKey(vault, fingerprint, (p) =>
+      device.btcXpub(coin, `m/${p}`, IS_MAINNET ? "xpub" : "tpub", false),
+    );
+    if (!found) {
       throw new Error(`This BitBox (${fingerprint}) holds none of this vault's keys. Connect another device, or check its passphrase.`);
     }
+    const { match, path } = found;
 
     const scriptConfig = {
       policy: {
         policy: policyDescriptor(vault.keys.length, vault.threshold, vault.timelockBlocks),
         keys: [
           { xpub: vault.numsXpub },
-          ...match.keys.map((k) =>
+          ...policyUserKeys(match).map((k) =>
             k.fingerprint && k.path ? { xpub: k.xpub, rootFingerprint: k.fingerprint, keypath: `m/${k.path}` } : { xpub: k.xpub },
           ),
           { xpub: vault.loanXpub },
@@ -410,10 +436,8 @@ async function identify(
   fingerprint: string,
   readXpub: (path: string) => Promise<string>,
 ): Promise<KeyMatch> {
-  for (const path of candidatePaths(vault, fingerprint)) {
-    const match = matchDeviceKey(vault, fingerprint, await readXpub(path), path);
-    if (match) return { slot: match.slot, fingerprint, path };
-  }
+  const found = await findDeviceKey(vault, fingerprint, readXpub);
+  if (found) return { slot: found.match.slot, fingerprint, path: found.path };
   const known = vault.keys.map((k) => k.fingerprint).filter((f) => f && f !== "00000000");
   const tried = candidatePaths(vault, fingerprint).map((p) => `m/${p}`).join(", ");
   throw new Error(
