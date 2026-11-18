@@ -113,11 +113,13 @@ export async function buildExitTransaction(
   const feeRates = await getFeeRates(); // validated: 1..MAX_FEE_RATE_SAT_VB
   const feeRate = Math.ceil(feeRates.halfHourFee);
   const vsize = estimateExitTxVsize(utxos.length, false); // no change, sweeping all
-  const fee = Math.max(vsize * feeRate, 250); // minimum 250 sats
+  const rateFee = vsize * feeRate;
+  const fee = Math.max(rateFee, 250); // minimum 250 sats
 
-  if (fee > totalInput * MAX_FEE_SHARE) {
+  // Cap the rate-driven fee only, so the 250-sat floor never blocks a small vault.
+  if (rateFee > totalInput * MAX_FEE_SHARE) {
     throw new Error(
-      `Fee of ${fee} sats (${feeRate} sat/vB) is more than ${MAX_FEE_SHARE * 100}% of the vault. Wait for lower fees.`,
+      `Fee of ${rateFee} sats (${feeRate} sat/vB) is more than ${MAX_FEE_SHARE * 100}% of the vault. Wait for lower fees.`,
     );
   }
 

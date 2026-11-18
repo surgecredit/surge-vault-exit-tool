@@ -14,7 +14,7 @@ function fetchWithTimeout(
 }
 
 // A higher rate means the fee source is wrong.
-export const MAX_FEE_RATE_SAT_VB = 1000;
+export const MAX_FEE_RATE_SAT_VB = 2000;
 
 export const NETWORK = APP_CONFIG.mainnet
   ? bitcoin.networks.bitcoin
