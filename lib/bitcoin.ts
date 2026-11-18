@@ -1,6 +1,21 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { ACTIVE_NETWORK_CONFIG, APP_CONFIG } from "./config";
 
+// Deadline for every Esplora and fee call.
+const FETCH_TIMEOUT_MS = 15_000;
+const BROADCAST_TIMEOUT_MS = 30_000;
+
+function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+}
+
+// A higher rate means the fee source is wrong.
+export const MAX_FEE_RATE_SAT_VB = 1000;
+
 export const NETWORK = APP_CONFIG.mainnet
   ? bitcoin.networks.bitcoin
   : bitcoin.networks.testnet;
@@ -56,7 +71,7 @@ export type EsploraTx = {
  * Fetch UTXOs for an address from the Esplora API.
  */
 export async function getUtxos(address: string): Promise<Utxo[]> {
-  const res = await fetch(`${BTC_ESPLORA_API}/address/${address}/utxo`);
+  const res = await fetchWithTimeout(`${BTC_ESPLORA_API}/address/${address}/utxo`);
   if (!res.ok) throw new Error(`Failed to fetch UTXOs: ${res.statusText}`);
   return res.json();
 }
@@ -65,7 +80,7 @@ export async function getUtxos(address: string): Promise<Utxo[]> {
  * Fetch the recent transaction history for an address from the Esplora API.
  */
 export async function getAddressTxs(address: string): Promise<EsploraTx[]> {
-  const res = await fetch(`${BTC_ESPLORA_API}/address/${address}/txs`);
+  const res = await fetchWithTimeout(`${BTC_ESPLORA_API}/address/${address}/txs`);
   if (!res.ok) throw new Error(`Failed to fetch txs: ${res.statusText}`);
   return res.json();
 }
@@ -83,7 +98,7 @@ export async function getAllAddressTxs(address: string): Promise<EsploraTx[]> {
     const lastSeen = page[page.length - 1].txid;
     if (seen.has(lastSeen)) break;
     seen.add(lastSeen);
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${BTC_ESPLORA_API}/address/${address}/txs/chain/${lastSeen}`,
     );
     if (!res.ok) throw new Error(`Failed to fetch txs: ${res.statusText}`);
@@ -97,7 +112,7 @@ export async function getAllAddressTxs(address: string): Promise<EsploraTx[]> {
  * Get the current tip block height.
  */
 export async function getTipHeight(): Promise<number> {
-  const res = await fetch(`${BTC_ESPLORA_API}/blocks/tip/height`);
+  const res = await fetchWithTimeout(`${BTC_ESPLORA_API}/blocks/tip/height`);
   if (!res.ok) throw new Error(`Failed to fetch tip height: ${res.statusText}`);
   const text = await res.text();
   return parseInt(text, 10);
@@ -108,11 +123,15 @@ export async function getTipHeight(): Promise<number> {
  * Returns the txid on success.
  */
 export async function pushTx(rawTxHex: string): Promise<string> {
-  const res = await fetch(`${BTC_ESPLORA_API}/tx`, {
-    method: "POST",
-    body: rawTxHex,
-    headers: { "Content-Type": "text/plain" },
-  });
+  const res = await fetchWithTimeout(
+    `${BTC_ESPLORA_API}/tx`,
+    {
+      method: "POST",
+      body: rawTxHex,
+      headers: { "Content-Type": "text/plain" },
+    },
+    BROADCAST_TIMEOUT_MS,
+  );
   if (!res.ok) {
     const errorText = await res.text();
     throw new Error(`Failed to broadcast tx: ${errorText}`);
@@ -130,18 +149,26 @@ export async function getFeeRates(): Promise<{
   economyFee: number;
   minimumFee: number;
 }> {
-  const res = await fetch(`${BTC_API}/v1/fees/recommended`);
+  // No fallback rate: a guessed 1 sat/vB can strand a signed exit in the mempool.
+  const res = await fetchWithTimeout(`${BTC_API}/v1/fees/recommended`);
   if (!res.ok) {
-    // Fallback to a sensible default if fee API is unavailable
-    return {
-      fastestFee: 2,
-      halfHourFee: 1,
-      hourFee: 1,
-      economyFee: 1,
-      minimumFee: 1,
-    };
+    throw new Error(
+      `Could not get a fee rate (${res.status}). Try again in a minute.`,
+    );
   }
-  return res.json();
+  const rates = await res.json();
+  const rate = rates?.halfHourFee;
+  if (
+    typeof rate !== "number" ||
+    !Number.isFinite(rate) ||
+    rate < 1 ||
+    rate > MAX_FEE_RATE_SAT_VB
+  ) {
+    throw new Error(
+      `Fee source returned an implausible rate (${String(rate)} sat/vB). Not building the transaction.`,
+    );
+  }
+  return rates;
 }
 
 /**

@@ -13,6 +13,9 @@ import { VaultInfo } from "./vault";
 
 bitcoin.initEccLib(ecc);
 
+// Refuse to build a sweep that spends more than this share of the vault on fees.
+const MAX_FEE_SHARE = 0.2;
+
 export type ExitTransactionResult = {
   txid: string;
   txHex: string;
@@ -104,10 +107,16 @@ export async function buildExitTransaction(
 
   // --- Step 3: Estimate fee ---
 
-  const feeRates = await getFeeRates();
-  const feeRate = feeRates.halfHourFee || 1;
+  const feeRates = await getFeeRates(); // validated: 1..MAX_FEE_RATE_SAT_VB
+  const feeRate = Math.ceil(feeRates.halfHourFee);
   const vsize = estimateExitTxVsize(utxos.length, false); // no change, sweeping all
   const fee = Math.max(vsize * feeRate, 250); // minimum 250 sats
+
+  if (fee > totalInput * MAX_FEE_SHARE) {
+    throw new Error(
+      `Fee of ${fee} sats (${feeRate} sat/vB) is more than ${MAX_FEE_SHARE * 100}% of the vault. Wait for lower fees.`,
+    );
+  }
 
   const amountToSend = totalInput - fee;
 
@@ -147,6 +156,26 @@ export async function finalizeAndBroadcastExitPsbt(
   }
 
   const tx = psbt.extractTransaction(true);
+
+  // extractTransaction(true) skips the fee check: confirm output and fee match the build (fee only if the wallet kept input values).
+  const outputTotal = tx.outs.reduce((sum, out) => sum + Number(out.value), 0);
+  if (tx.outs.length !== 1 || outputTotal !== amountSent) {
+    throw new Error(
+      "Signed transaction does not match the one built (outputs changed). Not broadcasting.",
+    );
+  }
+  if (psbt.data.inputs.every((input) => input.witnessUtxo)) {
+    const inputTotal = psbt.data.inputs.reduce(
+      (sum, input) => sum + Number(input.witnessUtxo!.value),
+      0,
+    );
+    if (inputTotal - outputTotal !== fee) {
+      throw new Error(
+        "Signed transaction fee differs from the fee shown. Not broadcasting.",
+      );
+    }
+  }
+
   const rawTxHex = tx.toHex();
   const txid = await pushTx(rawTxHex);
 
