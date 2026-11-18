@@ -229,11 +229,7 @@ export default function VaultDashboard({
         });
       }
 
-      const result = await finalizeAndBroadcastExitPsbt(
-        signedPsbtHex,
-        buildResult.fee,
-        buildResult.amountSent,
-      );
+      const result = await finalizeAndBroadcastExitPsbt(signedPsbtHex, buildResult);
 
       setExitResult(result);
     } catch (err: any) {

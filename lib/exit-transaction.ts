@@ -27,6 +27,9 @@ export type ExitTransactionBuildResult = {
   psbtHex: string;
   fee: number;
   amountSent: number;
+  // Kept from the build so the broadcast check does not trust wallet-returned data.
+  inputs: { txid: string; vout: number; value: number }[];
+  outputScriptHex: string;
 };
 
 /**
@@ -137,14 +140,16 @@ export async function buildExitTransaction(
     psbtHex: psbt.toHex(),
     fee,
     amountSent: amountToSend,
+    inputs: utxos.map((u) => ({ txid: u.txid, vout: u.vout, value: u.value })),
+    outputScriptHex: bitcoin.address.toOutputScript(destinationAddress, NETWORK).toString("hex"),
   };
 }
 
 export async function finalizeAndBroadcastExitPsbt(
   signedPsbtHex: string,
-  fee: number,
-  amountSent: number,
+  built: ExitTransactionBuildResult,
 ): Promise<ExitTransactionResult> {
+  const { fee, amountSent } = built;
   const psbt = bitcoin.Psbt.fromHex(signedPsbtHex, { network: NETWORK });
 
   const needsFinalize = psbt.data.inputs.some(
@@ -157,23 +162,25 @@ export async function finalizeAndBroadcastExitPsbt(
 
   const tx = psbt.extractTransaction(true);
 
-  // extractTransaction(true) skips the fee check: confirm output and fee match the build (fee only if the wallet kept input values).
-  const outputTotal = tx.outs.reduce((sum, out) => sum + Number(out.value), 0);
-  if (tx.outs.length !== 1 || outputTotal !== amountSent) {
+  // extractTransaction(true) skips the fee check: require the built inputs, output script and amount exactly.
+  const outpoint = (txid: string, vout: number) => `${txid}:${vout}`;
+  const builtInputs = new Map(built.inputs.map((i) => [outpoint(i.txid, i.vout), i.value]));
+  const signedInputs = tx.ins.map((i) =>
+    outpoint(Buffer.from(i.hash).reverse().toString("hex"), i.index),
+  );
+  const sameInputs =
+    signedInputs.length === builtInputs.size &&
+    new Set(signedInputs).size === signedInputs.length &&
+    signedInputs.every((o) => builtInputs.has(o));
+  const sameOutput =
+    tx.outs.length === 1 &&
+    Number(tx.outs[0].value) === amountSent &&
+    Buffer.from(tx.outs[0].script).toString("hex") === built.outputScriptHex;
+  const inputTotal = built.inputs.reduce((sum, i) => sum + i.value, 0);
+  if (!sameInputs || !sameOutput || inputTotal - amountSent !== fee) {
     throw new Error(
-      "Signed transaction does not match the one built (outputs changed). Not broadcasting.",
+      "Signed transaction does not match the one built (inputs, destination, amount or fee changed). Not broadcasting.",
     );
-  }
-  if (psbt.data.inputs.every((input) => input.witnessUtxo)) {
-    const inputTotal = psbt.data.inputs.reduce(
-      (sum, input) => sum + Number(input.witnessUtxo!.value),
-      0,
-    );
-    if (inputTotal - outputTotal !== fee) {
-      throw new Error(
-        "Signed transaction fee differs from the fee shown. Not broadcasting.",
-      );
-    }
   }
 
   const rawTxHex = tx.toHex();
