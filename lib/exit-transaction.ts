@@ -13,6 +13,9 @@ import { VaultInfo } from "./vault";
 
 bitcoin.initEccLib(ecc);
 
+// Refuse to build a sweep that spends more than this share of the vault on fees.
+const MAX_FEE_SHARE = 0.2;
+
 export type ExitTransactionResult = {
   txid: string;
   txHex: string;
@@ -24,6 +27,9 @@ export type ExitTransactionBuildResult = {
   psbtHex: string;
   fee: number;
   amountSent: number;
+  // Kept from the build so the broadcast check does not trust wallet-returned data.
+  inputs: { txid: string; vout: number; value: number }[];
+  outputScriptHex: string;
 };
 
 /**
@@ -104,10 +110,18 @@ export async function buildExitTransaction(
 
   // --- Step 3: Estimate fee ---
 
-  const feeRates = await getFeeRates();
-  const feeRate = feeRates.halfHourFee || 1;
+  const feeRates = await getFeeRates(); // validated: 1..MAX_FEE_RATE_SAT_VB
+  const feeRate = Math.ceil(feeRates.halfHourFee);
   const vsize = estimateExitTxVsize(utxos.length, false); // no change, sweeping all
-  const fee = Math.max(vsize * feeRate, 250); // minimum 250 sats
+  const rateFee = vsize * feeRate;
+  const fee = Math.max(rateFee, 250); // minimum 250 sats
+
+  // Cap the rate-driven fee only, so the 250-sat floor never blocks a small vault.
+  if (rateFee > totalInput * MAX_FEE_SHARE) {
+    throw new Error(
+      `Fee of ${rateFee} sats (${feeRate} sat/vB) is more than ${MAX_FEE_SHARE * 100}% of the vault. Wait for lower fees.`,
+    );
+  }
 
   const amountToSend = totalInput - fee;
 
@@ -128,14 +142,16 @@ export async function buildExitTransaction(
     psbtHex: psbt.toHex(),
     fee,
     amountSent: amountToSend,
+    inputs: utxos.map((u) => ({ txid: u.txid, vout: u.vout, value: u.value })),
+    outputScriptHex: bitcoin.address.toOutputScript(destinationAddress, NETWORK).toString("hex"),
   };
 }
 
 export async function finalizeAndBroadcastExitPsbt(
   signedPsbtHex: string,
-  fee: number,
-  amountSent: number,
+  built: ExitTransactionBuildResult,
 ): Promise<ExitTransactionResult> {
+  const { fee, amountSent } = built;
   const psbt = bitcoin.Psbt.fromHex(signedPsbtHex, { network: NETWORK });
 
   const needsFinalize = psbt.data.inputs.some(
@@ -147,6 +163,28 @@ export async function finalizeAndBroadcastExitPsbt(
   }
 
   const tx = psbt.extractTransaction(true);
+
+  // extractTransaction(true) skips the fee check: require the built inputs, output script and amount exactly.
+  const outpoint = (txid: string, vout: number) => `${txid}:${vout}`;
+  const builtInputs = new Map(built.inputs.map((i) => [outpoint(i.txid, i.vout), i.value]));
+  const signedInputs = tx.ins.map((i) =>
+    outpoint(Buffer.from(i.hash).reverse().toString("hex"), i.index),
+  );
+  const sameInputs =
+    signedInputs.length === builtInputs.size &&
+    new Set(signedInputs).size === signedInputs.length &&
+    signedInputs.every((o) => builtInputs.has(o));
+  const sameOutput =
+    tx.outs.length === 1 &&
+    Number(tx.outs[0].value) === amountSent &&
+    Buffer.from(tx.outs[0].script).toString("hex") === built.outputScriptHex;
+  const inputTotal = built.inputs.reduce((sum, i) => sum + i.value, 0);
+  if (!sameInputs || !sameOutput || inputTotal - amountSent !== fee) {
+    throw new Error(
+      "Signed transaction does not match the one built (inputs, destination, amount or fee changed). Not broadcasting.",
+    );
+  }
+
   const rawTxHex = tx.toHex();
   const txid = await pushTx(rawTxHex);
 
