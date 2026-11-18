@@ -11,7 +11,7 @@
     "@bitcoinerlab/secp256k1": "^1.1.1",
     "@scure/bip32": "^1.6.2",
     "@scure/bip39": "^1.5.4",
-    "bitcoinjs-lib": "^6.1.7",
+    "bitcoinjs-lib": "^6.1.8",
     "buffer": "^6.0.3",
     "ecpair": "^2.1.0",
     "ethers": "^6.15.0",
